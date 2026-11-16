@@ -1,0 +1,70 @@
+{
+	"name": "MHAID Sources",
+	"repository": "mhaid",
+	"mihonUpstream": "https://github.com/keiyoushi/extensions-source",
+	"aidokuUpstream": "https://github.com/Aidoku-Community/sources",
+	"sources": [
+		{
+			"id": "en.weebcentral",
+			"name": "Weeb Central",
+			"mihonPath": "src/en/weebcentral",
+			"aidokuPath": "sources/en.weebcentral",
+			"version": 8,
+			"languages": ["en"],
+			"contentRating": 1,
+			"baseURL": "https://weebcentral.com",
+			"minAppVersion": "0.7.1",
+			"packageFile": "en.weebcentral-v8.aix",
+			"iconFile": "en.weebcentral-v8.png",
+			"status": "ready"
+		},
+		{
+			"id": "en.comix",
+			"name": "Comix",
+			"mihonPath": "src/en/comix",
+			"aidokuPath": "sources/en.comix",
+			"version": 27,
+			"languages": ["en"],
+			"contentRating": 1,
+			"baseURL": "https://comix.to",
+			"minAppVersion": "0.8.4",
+			"packageFile": "en.comix-v27.aix",
+			"iconFile": "en.comix-v27.png",
+			"status": "ready"
+		},
+		{
+			"id": "multi.mangadex",
+			"name": "MangaDex",
+			"mihonPath": "src/all/mangadex",
+			"aidokuPath": "sources/multi.mangadex",
+			"version": 15,
+			"languages": [
+				"en", "sq", "ar", "az", "bn", "bg", "my", "ca", "zh-Hans", "zh-Hant",
+				"hr", "cs", "da", "nl", "eo", "et", "fil", "fi", "fr", "ka", "de", "el",
+				"he", "hi", "hu", "id", "it", "ja", "kk", "ko", "la", "lt", "ms", "mn",
+				"ne", "no", "fa", "pl", "pt", "pt-BR", "ro", "ru", "sr", "sk", "sl",
+				"es", "es-419", "sv", "ta", "te", "th", "tr", "uk", "vi"
+			],
+			"contentRating": 1,
+			"baseURL": "https://mangadex.org",
+			"minAppVersion": "0.7.1",
+			"packageFile": "multi.mangadex-v15.aix",
+			"iconFile": "multi.mangadex-v15.png",
+			"status": "ready"
+		},
+		{
+			"id": "multi.mangafire",
+			"name": "MangaFire",
+			"mihonPath": "src/all/mangafire",
+			"aidokuPath": "sources/multi.mangafire",
+			"version": 8,
+			"languages": ["en", "es", "es-419", "fr", "ja", "pt", "pt-BR"],
+			"contentRating": 1,
+			"baseURL": "https://mangafire.to",
+			"minAppVersion": "0.7.1",
+			"packageFile": "multi.mangafire-v8.aix",
+			"iconFile": "multi.mangafire-v8.png",
+			"status": "ready"
+		}
+	]
+}

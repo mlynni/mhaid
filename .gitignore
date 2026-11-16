@@ -1,0 +1,13 @@
+.DS_Store
+.build
+sources/*/*.aix
+sources/*/target
+sources/*/public
+templates/*/target
+
+.cache/
+.idea
+*.iml
+.zed
+.ropeproject
+/target
