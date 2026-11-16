@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="854" height="180" viewBox="0 0 854 180" role="img" aria-label="Mlyn Aidoku Sources">
+  <defs>
+    <linearGradient id="hdrGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#ff3b69"/>
+      <stop offset="100%" stop-color="#7c5cff"/>
+    </linearGradient>
+  </defs>
+  <path fill="url(#hdrGrad)" fill-opacity="0.35" d="M0,0 L854,0 L854,132 Q640,180 427,138 Q214,96 0,148 Z"/>
+  <path fill="url(#hdrGrad)" d="M0,0 L854,0 L854,116 Q640,164 427,124 Q214,84 0,132 Z"/>
+  <text x="427" y="68" text-anchor="middle" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif" font-size="44" font-weight="800" fill="#ffffff" letter-spacing="0.5">Mlyn Aidoku Sources</text>
+  <text x="427" y="100" text-anchor="middle" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif" font-size="16" font-weight="500" fill="#ffffff" fill-opacity="0.92">Curated Mihon &amp; Aidoku Extensions for Personal Reading</text>
+</svg>

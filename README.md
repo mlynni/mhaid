@@ -1,6 +1,8 @@
 <div align="center">
 
-<img src="https://capsule-render.vercel.app/api?type=waving&color=0:ff3b69,100:7c5cff&height=180&section=header&text=Mlyn%20Aidoku%20Sources&fontSize=54&fontColor=ffffff&fontAlignY=38&desc=Curated%20Mihon%20%26%20Aidoku%20Extensions%20for%20Personal%20Reading&descSize=16&descAlignY=62" alt="Mlyn Aidoku Sources" width="100%">
+<img src="assets/header-banner.svg" alt="Mlyn Aidoku Sources" width="100%">
+
+<br>
 
 <img alt="Platform: iOS / iPadOS, Aidoku 0.8.4+" src="https://img.shields.io/badge/iOS%20%2F%20iPadOS-Aidoku%200.8.4%2B-ff3b69?style=for-the-badge">
 <img alt="Sources: 17" src="https://img.shields.io/badge/sources-17-7c5cff?style=for-the-badge">
@@ -160,5 +162,5 @@ node scripts/build-repo.mjs --verify
 ---
 
 <div align="center">
-<img src="https://capsule-render.vercel.app/api?type=waving&color=0:7c5cff,100:ff3b69&height=90&section=footer" alt="" width="100%">
+<img src="assets/footer-banner.svg" alt="" width="100%">
 </div>

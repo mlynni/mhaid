@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="854" height="90" viewBox="0 0 854 90" role="img" aria-hidden="true">
+  <defs>
+    <linearGradient id="ftrGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#7c5cff"/>
+      <stop offset="100%" stop-color="#ff3b69"/>
+    </linearGradient>
+  </defs>
+  <path fill="url(#ftrGrad)" fill-opacity="0.35" d="M0,90 L854,90 L854,28 Q640,0 427,32 Q214,64 0,22 Z"/>
+  <path fill="url(#ftrGrad)" d="M0,90 L854,90 L854,38 Q640,10 427,42 Q214,74 0,34 Z"/>
+</svg>

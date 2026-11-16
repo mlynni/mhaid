@@ -1,5 +1,5 @@
 {
-	"name": "Mlyns Personal Sources",
+	"name": "Mlyn Aidoku Sources",
 	"sources": [
 		{
 			"id": "en.atsumaru",
@@ -216,9 +216,9 @@
 		{
 			"id": "multi.mangaball",
 			"name": "Mangaball",
-			"version": 12,
-			"iconURL": "icons/multi.mangaball-v12.png",
-			"downloadURL": "sources/multi.mangaball-v12.aix",
+			"version": 13,
+			"iconURL": "icons/multi.mangaball-v13.png",
+			"downloadURL": "sources/multi.mangaball-v13.aix",
 			"languages": [
 				"en",
 				"ar",
