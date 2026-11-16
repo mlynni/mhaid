@@ -1,12 +1,61 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="854" height="180" viewBox="0 0 854 180" role="img" aria-label="Mlyn Aidoku Sources">
+<svg xmlns="http://www.w3.org/2000/svg" width="854" height="188" viewBox="0 0 854 188" role="img" aria-label="Mlyn Aidoku Sources">
   <defs>
-    <linearGradient id="hdrGrad" x1="0%" y1="0%" x2="100%" y2="0%">
-      <stop offset="0%" stop-color="#ff3b69"/>
-      <stop offset="100%" stop-color="#7c5cff"/>
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#090d16"/>
+      <stop offset="55%" stop-color="#0f172a"/>
+      <stop offset="100%" stop-color="#111827"/>
     </linearGradient>
+    <linearGradient id="accentLine" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#10b981"/>
+      <stop offset="50%" stop-color="#06b6d4"/>
+      <stop offset="100%" stop-color="#6366f1"/>
+    </linearGradient>
+    <linearGradient id="bladeGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#34d399"/>
+      <stop offset="100%" stop-color="#22d3ee"/>
+    </linearGradient>
+    <radialGradient id="glowLeft" cx="20%" cy="50%" r="48%">
+      <stop offset="0%" stop-color="#10b981" stop-opacity="0.22"/>
+      <stop offset="100%" stop-color="#10b981" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="glowRight" cx="85%" cy="35%" r="45%">
+      <stop offset="0%" stop-color="#6366f1" stop-opacity="0.24"/>
+      <stop offset="100%" stop-color="#6366f1" stop-opacity="0"/>
+    </radialGradient>
+    <pattern id="grid" width="28" height="28" patternUnits="userSpaceOnUse">
+      <path d="M 28 0 L 0 0 0 28" fill="none" stroke="#94a3b8" stroke-opacity="0.07" stroke-width="1"/>
+    </pattern>
+    <clipPath id="cardClip">
+      <rect x="2" y="2" width="850" height="184" rx="18"/>
+    </clipPath>
   </defs>
-  <path fill="url(#hdrGrad)" fill-opacity="0.35" d="M0,0 L854,0 L854,132 Q640,180 427,138 Q214,96 0,148 Z"/>
-  <path fill="url(#hdrGrad)" d="M0,0 L854,0 L854,116 Q640,164 427,124 Q214,84 0,132 Z"/>
-  <text x="427" y="68" text-anchor="middle" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif" font-size="44" font-weight="800" fill="#ffffff" letter-spacing="0.5">Mlyn Aidoku Sources</text>
-  <text x="427" y="100" text-anchor="middle" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif" font-size="16" font-weight="500" fill="#ffffff" fill-opacity="0.92">Curated Mihon &amp; Aidoku Extensions for Personal Reading</text>
+  <g clip-path="url(#cardClip)">
+    <rect width="854" height="188" fill="url(#bgGrad)"/>
+    <rect width="854" height="188" fill="url(#grid)"/>
+    <rect width="854" height="188" fill="url(#glowLeft)"/>
+    <rect width="854" height="188" fill="url(#glowRight)"/>
+    <!-- Subtle geometric orbital rings on right -->
+    <circle cx="770" cy="40" r="110" fill="none" stroke="#06b6d4" stroke-opacity="0.10" stroke-width="1.2"/>
+    <circle cx="770" cy="40" r="74" fill="none" stroke="#10b981" stroke-opacity="0.12" stroke-width="1" stroke-dasharray="4 6"/>
+    <!-- Left geometric Mlyn 4-blade emblem -->
+    <g transform="translate(96, 94)">
+      <circle cx="0" cy="0" r="44" fill="#0b1322" stroke="url(#accentLine)" stroke-opacity="0.55" stroke-width="1.5"/>
+      <circle cx="0" cy="0" r="35" fill="none" stroke="#38bdf8" stroke-opacity="0.18" stroke-width="1" stroke-dasharray="3 4"/>
+      <g transform="rotate(20)">
+        <rect x="-4" y="-30" width="8" height="22" rx="3" fill="url(#bladeGrad)"/>
+        <rect x="-4" y="8" width="8" height="22" rx="3" fill="url(#bladeGrad)" fill-opacity="0.82"/>
+        <rect x="8" y="-4" width="22" height="8" rx="3" fill="#22d3ee" fill-opacity="0.9"/>
+        <rect x="-30" y="-4" width="22" height="8" rx="3" fill="#6366f1" fill-opacity="0.9"/>
+      </g>
+      <circle cx="0" cy="0" r="6" fill="#0f172a" stroke="#34d399" stroke-width="2.2"/>
+    </g>
+    <!-- Accent top & bottom rail -->
+    <rect x="0" y="0" width="854" height="3" fill="url(#accentLine)"/>
+    <rect x="164" y="128" width="520" height="2" rx="1" fill="url(#accentLine)" fill-opacity="0.75"/>
+    <!-- Title & Subtitle -->
+    <text x="164" y="84" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',Inter,Helvetica,Arial,sans-serif" font-size="42" font-weight="800" fill="#f8fafc" letter-spacing="-0.4">Mlyn Aidoku Sources</text>
+    <text x="166" y="114" font-family="ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace" font-size="13.5" font-weight="600" fill="#94a3b8" letter-spacing="1.4">CURATED MIHON-TO-AIDOKU EXTENSIONS · RUST / WEBASSEMBLY</text>
+    <text x="166" y="152" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',Inter,Helvetica,Arial,sans-serif" font-size="13" font-weight="500" fill="#34d399">17 Focused Sources · 12h Upstream Auto-Sync · Direct GitHub Pages Hosting</text>
+  </g>
+  <rect x="2" y="2" width="850" height="184" rx="18" fill="none" stroke="#334155" stroke-opacity="0.75" stroke-width="1.5"/>
 </svg>

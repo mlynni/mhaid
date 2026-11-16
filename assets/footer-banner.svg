@@ -1,10 +1,25 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="854" height="90" viewBox="0 0 854 90" role="img" aria-hidden="true">
+<svg xmlns="http://www.w3.org/2000/svg" width="854" height="72" viewBox="0 0 854 72" role="img" aria-hidden="true">
   <defs>
-    <linearGradient id="ftrGrad" x1="0%" y1="0%" x2="100%" y2="0%">
-      <stop offset="0%" stop-color="#7c5cff"/>
-      <stop offset="100%" stop-color="#ff3b69"/>
+    <linearGradient id="ftrBg" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#090d16"/>
+      <stop offset="50%" stop-color="#0f172a"/>
+      <stop offset="100%" stop-color="#090d16"/>
     </linearGradient>
+    <linearGradient id="ftrRail" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#10b981"/>
+      <stop offset="50%" stop-color="#06b6d4"/>
+      <stop offset="100%" stop-color="#6366f1"/>
+    </linearGradient>
+    <clipPath id="ftrClip">
+      <rect x="2" y="2" width="850" height="68" rx="14"/>
+    </clipPath>
   </defs>
-  <path fill="url(#ftrGrad)" fill-opacity="0.35" d="M0,90 L854,90 L854,28 Q640,0 427,32 Q214,64 0,22 Z"/>
-  <path fill="url(#ftrGrad)" d="M0,90 L854,90 L854,38 Q640,10 427,42 Q214,74 0,34 Z"/>
+  <g clip-path="url(#ftrClip)">
+    <rect width="854" height="72" fill="url(#ftrBg)"/>
+    <rect x="0" y="69" width="854" height="3" fill="url(#ftrRail)"/>
+    <path d="M24,36 L340,36" stroke="#1e293b" stroke-width="1"/>
+    <path d="M514,36 L830,36" stroke="#1e293b" stroke-width="1"/>
+    <text x="427" y="40" text-anchor="middle" font-family="ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace" font-size="12" font-weight="600" fill="#64748b" letter-spacing="1.8">MLYN AIDOKU SOURCES · RUST WASM</text>
+  </g>
+  <rect x="2" y="2" width="850" height="68" rx="14" fill="none" stroke="#1e293b" stroke-width="1.5"/>
 </svg>
