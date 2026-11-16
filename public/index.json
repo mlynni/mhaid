@@ -216,9 +216,9 @@
 		{
 			"id": "multi.mangaball",
 			"name": "Mangaball",
-			"version": 13,
-			"iconURL": "icons/multi.mangaball-v13.png",
-			"downloadURL": "sources/multi.mangaball-v13.aix",
+			"version": 14,
+			"iconURL": "icons/multi.mangaball-v14.png",
+			"downloadURL": "sources/multi.mangaball-v14.aix",
 			"languages": [
 				"en",
 				"ar",
