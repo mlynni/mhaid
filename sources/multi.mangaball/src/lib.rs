@@ -6,10 +6,15 @@ mod models;
 mod settings;
 
 use aidoku::{
-	Chapter, DeepLinkHandler, DeepLinkResult, FilterValue, ImageRequestProvider, Listing,
-	ListingProvider, Manga, MangaPageResult, Page, PageContent, PageContext, Result, Source,
+	Chapter, CoverImageProcessor, DeepLinkHandler, DeepLinkResult, FilterValue, ImageRequestProvider,
+	ImageResponse, Listing, ListingProvider, Manga, MangaPageResult, Page, PageContent, PageContext,
+	Result, Source,
 	alloc::{String, Vec, vec},
-	imports::{net::Request, std::send_partial_result},
+	imports::{
+		canvas::ImageRef,
+		net::Request,
+		std::send_partial_result,
+	},
 	prelude::*,
 };
 use api::{API_URL, BASE_URL, SORTS, SearchParams, get, parse, site_headers};
@@ -139,9 +144,46 @@ impl ListingProvider for MangaBall {
 }
 
 impl ImageRequestProvider for MangaBall {
-	// The image hosts refuse requests the site didn't refer.
+	// Avoid sending Mangaball's Referer to external cover CDNs that hotlink-block foreign referrers.
 	fn get_image_request(&self, url: String, _context: Option<PageContext>) -> Result<Request> {
-		Ok(Request::get(url)?.header("Referer", &format!("{BASE_URL}/")))
+		let req = Request::get(&url)?.header(
+			"Accept",
+			"image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8",
+		);
+		if url.contains("mangadex.org") {
+			Ok(req.header("Referer", "https://mangadex.org/"))
+		} else if url.contains("mangaupdates.com") {
+			Ok(req)
+		} else {
+			Ok(req.header("Referer", &format!("{BASE_URL}/")))
+		}
+	}
+}
+
+impl CoverImageProcessor for MangaBall {
+	fn process_cover_image(&self, response: ImageResponse) -> Result<ImageRef> {
+		if response.code < 400 && response.image.width() > 0.0 {
+			return Ok(response.image);
+		}
+		if let Some(url) = response.request.url.as_deref() {
+			if let Ok(req) = Request::get(url)
+				&& let Ok(resp) = req.send()
+				&& resp.status_code() < 400
+				&& let Ok(bytes) = resp.get_data()
+				&& !bytes.is_empty()
+			{
+				return Ok(ImageRef::new(&bytes));
+			}
+			if let Ok(req) = Request::get(url).map(|r| r.header("Referer", &format!("{BASE_URL}/")))
+				&& let Ok(resp) = req.send()
+				&& resp.status_code() < 400
+				&& let Ok(bytes) = resp.get_data()
+				&& !bytes.is_empty()
+			{
+				return Ok(ImageRef::new(&bytes));
+			}
+		}
+		Ok(response.image)
 	}
 }
 
@@ -167,5 +209,6 @@ register_source!(
 	Home,
 	ListingProvider,
 	ImageRequestProvider,
+	CoverImageProcessor,
 	DeepLinkHandler
 );

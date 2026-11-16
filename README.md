@@ -1,86 +1,164 @@
-# Mlyns Personal Sources — Aidoku-екстеншени з Mihon
+<div align="center">
 
-Персональний репозиторій розширень (джерел) для **[Aidoku](https://aidoku.app)** (iOS / iPadOS, версія 0.7+, для Comix — 0.8.4+, для Mangadotnet v10 — 0.9.0+), портованих із розширень Mihon (`keiyoushi/extensions-source`) у формат Rust/WebAssembly (`aidoku-rs`).
+<img src="https://capsule-render.vercel.app/api?type=waving&color=0:ff3b69,100:7c5cff&height=180&section=header&text=Mlyn%20Aidoku%20Sources&fontSize=54&fontColor=ffffff&fontAlignY=38&desc=Curated%20Mihon%20%26%20Aidoku%20Extensions%20for%20Personal%20Reading&descSize=16&descAlignY=62" alt="Mlyn Aidoku Sources" width="100%">
 
-## Підтримувані екстеншени (17 джерел)
+<img alt="Platform: iOS / iPadOS, Aidoku 0.8.4+" src="https://img.shields.io/badge/iOS%20%2F%20iPadOS-Aidoku%200.8.4%2B-ff3b69?style=for-the-badge">
+<img alt="Sources: 17" src="https://img.shields.io/badge/sources-17-7c5cff?style=for-the-badge">
+<img alt="Auto-Sync: Every 12h" src="https://img.shields.io/badge/auto--sync-every%2012h-1f2937?style=for-the-badge">
 
-| Джерело | ID в Aidoku | Мови | Версія | Мін. версія Aidoku | Базовий URL |
-|---|---|---|---:|---:|---|
-| **Atsumaru** | `en.atsumaru` | `en` | v12 | `0.7.1` | https://atsu.moe |
-| **Comix** | `en.comix` | `en` | v29 | `0.8.4` | https://comix.to |
-| **Kagane** | `multi.kagane` | 15 мов | v26 | `0.7.1` | https://kagane.moe |
-| **MANGA Plus** | `multi.mangaplus` | 9 мов | v6 | `0.7.2` | https://mangaplus.shueisha.co.jp |
-| **Mangaball** | `multi.mangaball` | 34 мови (включно з `uk`) | v12 | `0.7.1` | https://mangaball.com |
-| **MangaBat** | `en.mangabat` | `en` | v9 | `0.7.1` | https://www.mangabats.com |
-| **MangaDex** | `multi.mangadex` | 54 мови (включно з `uk`, `en`) | v16 | `0.7.1` | https://mangadex.org |
-| **MangaDotNet** | `en.mangadot` | 43 мови (включно з `uk`) | v20 | `0.8.3` | https://mangadot.net |
-| **Mangadotnet** | `multi.mangadotnet` | 43 мови (включно з `uk`) | v10 | `0.9.0` | https://mangadot.net |
-| **MangaFire** | `multi.mangafire` | `en`, `es`, `es-419`, `fr`, `ja`, `pt`, `pt-BR` | v9 | `0.7.1` | https://mangafire.to |
-| **Mangago** | `en.mangago` | `en` | v4 | `0.7.1` | https://www.mangago.me |
-| **MangaKakalot** | `en.mangakakalot` | `en` | v6 | `0.7.1` | https://www.mangakakalot.gg |
-| **MangaNato** | `en.manganato` | `en` | v8 | `0.7.1` | https://www.manganato.gg |
-| **MangaNelo** | `en.manganelo` | `en` | v4 | `0.7.1` | https://www.nelomanga.net |
-| **MangaPill** | `en.mangapill` | `en` | v4 | `0.7.1` | https://mangapill.com |
-| **Toonily** | `en.toonily` | `en` | v10 | `0.7.1` | https://toonily.com |
-| **Weeb Central** | `en.weebcentral` | `en` | v9 | `0.7.1` | https://weebcentral.com |
+<img src="assets/spacer.png" width="100%" height="24" alt="">
 
-## Як додати в додаток Aidoku
+<a href="https://aidoku.app/add-source-list/?url=https://mlynni.github.io/mhaid/index.min.json">
+  <img alt="Add Mlyn Aidoku Sources to Aidoku" src="assets/add-to-aidoku.svg" width="300">
+</a>
 
-1. Відкрийте **Aidoku** на iPhone або iPad.
-2. Перейдіть у **Settings → Source Lists**.
-3. Натисніть **+** та вставте посилання на ваш GitHub Pages або Raw-індекс:
-   - Через GitHub Pages (рекомендовано):
-     ```text
-     https://mlynni.github.io/mhaid/index.min.json
-     ```
-   - Або через веб-сторінку `https://mlynni.github.io/mhaid/` кнопкою **Add Repository**.
-   - Альтернативно через Raw GitHub (гілка `gh-pages`):
-     ```text
-     https://raw.githubusercontent.com/mlynni/mhaid/gh-pages/index.min.json
-     ```
+<img src="assets/spacer.png" width="100%" height="24" alt="">
 
-> **Примітка щодо Comix (`en.comix`):** потребує Aidoku **0.8.4+**. Якщо сайт повертає перевірку WAF/Captcha, відкрийте в додатку **Settings екстеншена Comix → Verify Captcha**.
+Натисніть кнопку на iPhone або iPad, щоб додати список одразу в **Aidoku**, або відкрийте **Settings → Source Lists → +** та вставте:
 
-## Автоматичне оновлення з Mihon (GitHub Actions)
+<code>https://mlynni.github.io/mhaid/index.min.json</code>
 
-У репозиторії налаштовано повністю автоматичний пайплайн синхронізації [`.github/workflows/sync-upstream.yaml`](.github/workflows/sync-upstream.yaml) + [`scripts/sync-upstream.mjs`](scripts/sync-upstream.mjs):
+<sub>Веб-сторінка списку: <a href="https://mlynni.github.io/mhaid/">mlynni.github.io/mhaid</a> &nbsp;·&nbsp; Резервний raw-URL: <code>https://raw.githubusercontent.com/mlynni/mhaid/gh-pages/index.min.json</code></sub>
 
-- **Розклад:** запускається автоматично кожні 12 годин (`0 */12 * * *`), а також доступний вручну через **Actions → Sync Upstream Mihon Sources → Run workflow**.
-- **Що робить автоматично:**
-  1. Порівнює поточні коміти `lastMihonCommit` із останніми змінами в `keiyoushi/extensions-source` (та `Aidoku-Community/sources`).
-  2. Якщо для якогось екстеншена в Mihon змінились файли:
-     - Оновлює `sources/<id>/MIHON_SOURCE.md`.
-     - Автоматично синхронізує нові домени/дзеркала (`baseUrl` / `mirrors`) у `res/source.json`, Rust-коді та `extensions.json`.
-     - За наявності секрету `GEMINI_API_KEY` у **GitHub Repository Settings → Secrets and variables → Actions** передає Kotlin `git diff` у Gemini (`gemini-2.5-pro`), автоматично переписує відповідний Rust-код, перевіряє компіляцію (`cargo check --target wasm32-unknown-unknown`) і відкочує патч, якщо він не компілюється.
-  3. Піднімає `version` (+1), компілює нові `.aix` через `aidoku package`, оновлює `index.min.json` у `gh-pages` і фіксує зміни в `main`.
+</div>
 
-### Як увімкнути ШІ-переписування складних Kotlin-змін у GitHub Actions (опційно)
-1. Отримайте API-ключ у Google AI Studio (`https://aistudio.google.com/apikey`).
-2. У репозиторії GitHub перейдіть у **Settings → Secrets and variables → Actions → New repository secret**.
-3. Створіть секрет з назвою **`GEMINI_API_KEY`** і вставте ваш ключ.
+---
 
-## Як швидко додати новий екстеншен з Mihon вручну
+## Про цей репозиторій
+
+**[Aidoku](https://aidoku.app)** — безкоштовний open-source рідер манґи, манхви та маньхуа для iOS і iPadOS.
+
+**Mlyn Aidoku Sources** — це **персональний, вузькосфокусований список джерел**, створений виключно під ті **17 екстеншенів**, якими я реально користуюсь для читання. Замість того щоб розпилятися на сотні сторонніх сайтів, репозиторій тримає у фокусі лише обраний перелік і оновлюється тоді, коли змінюється мій список читання або виходять апдейти на апстрімах.
+
+### Що саме відбувається в цьому репозиторії
+
+1. **Порти з Mihon та адаптації під `aidoku-rs` (Rust → WebAssembly `.aix`):**
+   - Кожен екстеншен у [`sources/`](sources/) — це окремий незалежний Rust-крейт (`Cargo.toml`), який компілюється в WebAssembly-пакет `.aix` для Aidoku.
+   - Для кожного джерела поруч зберігається файл `MIHON_SOURCE.md` з актуальними CSS-селекторами, API-ендпоінтами, фільтрами, мовами та дзеркалами з Mihon (`keiyoushi/extensions-source`).
+   - Окремі екстеншени мають власні виправлення (наприклад, кастомний порт `MangaPill` із Mihon, завантаження обкладинок через WebView після капчі в `Comix`, мульти-CDN резолв та Hotlink-обхід для постерів `Mangaball`).
+2. **Автоматична синхронізація та збірка через GitHub Actions:**
+   - Воркфлоу [`.github/workflows/sync-upstream.yaml`](.github/workflows/sync-upstream.yaml) запускається кожні **12 годин** і перевіряє нові коміти в апстрімах для всіх 17 відстежуваних джерел.
+   - При змінах [`scripts/sync-upstream.mjs`](scripts/sync-upstream.mjs) оновлює `MIHON_SOURCE.md`, дзеркала (`baseURL` / `mirrors`) та Rust-код, піднімає версію, компілює нові `.aix` через `aidoku package`, перевіряє цілісність ([`scripts/build-repo.mjs`](scripts/build-repo.mjs)) і публікує оновлений `index.min.json` у гілку `gh-pages`.
+
+---
+
+## Подяки та першоджерела
+
+Цей репозиторій не є «офіційним списком спільноти» і не привласнює роботу інших авторів. Він побудований завдяки праці кількох чудових open-source проєктів:
+
+- **[Aidoku](https://github.com/Aidoku/Aidoku)** & **[aidoku-rs](https://github.com/Aidoku/aidoku-rs)** — сам додаток Aidoku та Rust WebAssembly SDK для джерел.
+- **[Aidoku Community Sources](https://github.com/Aidoku-Community/sources)** — відкриті Rust-імплементації більшості базових джерел і спільні шаблони (`mangabox`, `madara`).
+- **[Keiyoushi / Mihon Extensions](https://github.com/keiyoushi/extensions-source)** — Kotlin-розширення Mihon, з яких ми беремо селектори, домени, налаштування та логіку оновлень для портування й автосинхронізації.
+- **[Yomu Aidoku Sources (Smexhy)](https://github.com/Smexhy/yomu-aidoku-sources)** — натхнення для оформлення та структури цього `README`, а також орієнтир для покращень у джерелах (зокрема обхід перевірок `Comix`, робота з `Mangaball`, `MangaDotNet`, `Kagane` та `Atsumaru`).
+
+Уся повага й авторство базових проєктів і платформ належить їхнім оригінальним мейнтейнерам і власникам сайтів.
+
+---
+
+## Сфокусований список (17 джерел)
+
+| Джерело | ID | Версія | Мови | Мін. Aidoku | Сайт і примітки |
+|---|---|---:|---|---:|---|
+| <img src="assets/icons/en.atsumaru.png" width="22" align="top"> **Atsumaru** | `en.atsumaru` | `v12` | English | `0.7.1` | [atsu.moe](https://atsu.moe) · Швидке JSON API без зайвого прогріву |
+| <img src="assets/icons/en.comix.png" width="22" align="top"> **Comix** | `en.comix` | `v29` | English | `0.8.4` | [comix.to](https://comix.to) · Величезна бібліотека + WebView-резолв постерів після Verify Captcha |
+| <img src="assets/icons/multi.kagane.png" width="22" align="top"> **Kagane** | `multi.kagane` | `v26` | 15 мов | `0.7.1` | [kagane.moe](https://kagane.moe) · Переважно манхва, бейджі груп і джерел |
+| <img src="assets/icons/multi.mangaplus.png" width="22" align="top"> **MANGA Plus** | `multi.mangaplus` | `v6` | 9 мов | `0.7.2` | [mangaplus.shueisha.co.jp](https://mangaplus.shueisha.co.jp) · Офіційні релізи Shueisha |
+| <img src="assets/icons/multi.mangaball.png" width="22" align="top"> **Mangaball** | `multi.mangaball` | `v13` | 34 мови (включно з `uk`) | `0.7.1` | [mangaball.com](https://mangaball.com) · Багатомовне покриття + fallback-завантаження постерів із різних CDN |
+| <img src="assets/icons/en.mangabat.png" width="22" align="top"> **MangaBat** | `en.mangabat` | `v9` | English | `0.7.1` | [mangabats.com](https://www.mangabats.com) · Шаблон `mangabox` |
+| <img src="assets/icons/multi.mangadex.png" width="22" align="top"> **MangaDex** | `multi.mangadex` | `v16` | 54 мови (включно з `uk`, `en`) | `0.7.1` | [mangadex.org](https://mangadex.org) · Офіційне публічне API, підтримка української |
+| <img src="assets/icons/en.mangadot.png" width="22" align="top"> **MangaDotNet** | `en.mangadot` | `v20` | 43 мови (включно з `uk`) | `0.8.3` | [mangadot.net](https://mangadot.net) · Групування перекладу під одну команду |
+| <img src="assets/icons/multi.mangadotnet.png" width="22" align="top"> **Mangadotnet** | `multi.mangadotnet` | `v10` | 43 мови (включно з `uk`) | `0.9.0` | [mangadot.net](https://mangadot.net) · Варіант під Aidoku 0.9.0+ |
+| <img src="assets/icons/multi.mangafire.png" width="22" align="top"> **MangaFire** | `multi.mangafire` | `v9` | 7 мов (`en`, `es`, `fr`, `ja`, `pt`…) | `0.7.1` | [mangafire.to](https://mangafire.to) · Мультимовний каталог із фільтрами |
+| <img src="assets/icons/en.mangago.png" width="22" align="top"> **Mangago** <img alt="18+" src="https://img.shields.io/badge/18+-ff3b69?style=flat-square" align="top"> | `en.mangago` | `v4` | English | `0.7.1` | [mangago.me](https://www.mangago.me) · Повний каталог сайту (NSFW) |
+| <img src="assets/icons/en.mangakakalot.png" width="22" align="top"> **MangaKakalot** | `en.mangakakalot` | `v6` | English | `0.7.1` | [mangakakalot.gg](https://www.mangakakalot.gg) · Шаблон `mangabox` |
+| <img src="assets/icons/en.manganato.png" width="22" align="top"> **MangaNato** | `en.manganato` | `v8` | English | `0.7.1` | [manganato.gg](https://www.manganato.gg) · Шаблон `mangabox` |
+| <img src="assets/icons/en.manganelo.png" width="22" align="top"> **MangaNelo** | `en.manganelo` | `v4` | English | `0.7.1` | [nelomanga.net](https://www.nelomanga.net) · Шаблон `mangabox` |
+| <img src="assets/icons/en.mangapill.png" width="22" align="top"> **MangaPill** | `en.mangapill` | `v4` | English | `0.7.1` | [mangapill.com](https://mangapill.com) · Кастомний порт із Mihon Kotlin під Aidoku WASM |
+| <img src="assets/icons/en.toonily.png" width="22" align="top"> **Toonily** <img alt="18+" src="https://img.shields.io/badge/18+-ff3b69?style=flat-square" align="top"> | `en.toonily` | `v10` | English | `0.7.1` | [toonily.com](https://toonily.com) · Шаблон `madara` (NSFW) |
+| <img src="assets/icons/en.weebcentral.png" width="22" align="top"> **Weeb Central** | `en.weebcentral` | `v9` | English | `0.7.1` | [weebcentral.com](https://weebcentral.com) · Чистий пошук і фільтри |
+
+<sub>Для мультимовних джерел оберіть потрібні мови (наприклад, `uk` і `en`) у налаштуваннях відповідного екстеншена всередині Aidoku.</sub>
+
+---
+
+## Особливості ключових джерел
+
+<h3><img src="assets/icons/en.comix.png" width="24" align="top">&nbsp; Comix</h3>
+
+<sub><code>en.comix</code> &nbsp;·&nbsp; <a href="https://comix.to">comix.to</a> &nbsp;·&nbsp; <strong>потрібен Aidoku 0.8.4+</strong></sub>
+
+- **Веб-перевірка та постери.** Після проходження перевірки (**Settings екстеншена Comix → Verify Captcha**) WebView автоматично розпізнає та підвантажує навіть ті постери й зображення сторінок, де CDN вимагає браузерні куки/перевірку.
+- **Дедуплікація та розшифрування.** Пріоритет офіційним релізам і кращим групам, підтримка дескремблінгу захищених сторінок.
+
+<details>
+<summary><strong>Деталі про Comix і роботу з Verify Captcha</strong></summary>
+
+1. Відкрийте в Aidoku **Browse → Comix → Settings → Verify Captcha** і пройдіть перевірку у вікні.
+2. Завантажені обкладинки автоматично підтягуються через WebView (`resolve_covers_in_webview` + `CoverImageProcessor`), навіть якщо прямі HTTP-запити до CDN тимчасово обмежені WAF/Cloudflare.
+3. Якщо сесія застаріла — повторіть **Verify Captcha** або оберіть **Clear Cache**.
+
+</details>
+
+<h3><img src="assets/icons/multi.mangaball.png" width="24" align="top">&nbsp; Mangaball</h3>
+
+<sub><code>multi.mangaball</code> &nbsp;·&nbsp; <a href="https://mangaball.com">mangaball.com</a> &nbsp;·&nbsp; <strong>оновлено у v13</strong></sub>
+
+- **Фікс завантаження постерів (v13).**
+  - Відфільтровані мертві зовнішні дзеркала (`hentaicdn.org` / `hencover`), через які обкладинки лишались порожніми.
+  - Нормалізовані відносні шляхи `/media/mbim/...`, `/covers/...`, Windows-слеші та відносні MangaDex-обкладинки, а також додано резервний `background`.
+  - Виправлено `Referer`-заголовки в `ImageRequestProvider` для зовнішніх CDN (зокрема `uploads.mangadex.org` і `mangaupdates.com`) та додано `CoverImageProcessor` fallback на випадок відмови окремого дзеркала.
+
+<h3><img src="assets/icons/en.mangadot.png" width="24" align="top">&nbsp; MangaDotNet та Mangadotnet</h3>
+
+<sub><code>en.mangadot</code> (v20, Aidoku 0.8.3+) &nbsp;·&nbsp; <code>multi.mangadotnet</code> (v10, Aidoku 0.9.0+) &nbsp;·&nbsp; <a href="https://mangadot.net">mangadot.net</a></sub>
+
+- У списку залишено обидві версії під різні версії додатка Aidoku (0.8.x і 0.9.0+), як у вашому наборі встановлених джерел.
+
+<h3><img src="assets/icons/en.mangapill.png" width="24" align="top">&nbsp; MangaPill</h3>
+
+<sub><code>en.mangapill</code> &nbsp;·&nbsp; <a href="https://mangapill.com">mangapill.com</a></sub>
+
+- Прямий порт із Mihon (`src/en/mangapill`) на чистий Rust (`aidoku-rs`), включно з пошуком, фільтрами за типом/статусом/жанрами, парсингом глав і сторінок.
+
+---
+
+## Якщо джерело зависає при завантаженні
+
+> 💡 **Тримайте Aidoku оновленим до останньої версії.** Більшість помилок `403` або нескінченних спінерів пов'язані з Cloudflare-обробкою на рівні самого додатка, а не джерела.
+
+Якщо після оновлення джерело все одно підвисає:
+
+1. Відкрийте **Browse**, перейдіть у джерело та натисніть **три крапки → Settings**.
+2. Прокрутіть униз і натисніть **Clear Cache** (для Comix також за потреби **Verify Captcha**).
+3. Повністю **перезапустіть Aidoku** (змахніть із панелі задач і відкрийте знову).
+
+---
+
+## Як оновлювати та змінювати цей список
+
+Усі 17 екстеншенів перелічені у [`extensions.json`](extensions.json). Щоб з часом додати або оновити джерело з Mihon:
 
 ```bash
-# 1. Переглянути поточний список
+# Переглянути активні джерела та зафіксовані апстрім-коміти
 node scripts/mihon-to-aidoku.mjs --list
 
-# 2. Додати нове джерело за назвою папки в keiyoushi/extensions-source
+# Додати нове джерело за назвою папки з keiyoushi/extensions-source
 node scripts/mihon-to-aidoku.mjs <extension-name>
 
-# 3. За потреби перевірити локально або пересинхронізувати документацію
-node scripts/mihon-to-aidoku.mjs --sync-docs
+# Вручну перевірити апстрім-оновлення Mihon / Aidoku
+node scripts/sync-upstream.mjs --dry-run
+
+# Перевірити цілісність index.min.json та всіх .aix архівів
 node scripts/build-repo.mjs --verify
 ```
 
-## Структура репозиторію
+### Як увімкнути ШІ-переписування складних Kotlin-змін при автосинхронізації (опційно)
+1. Отримайте API-ключ у [Google AI Studio](https://aistudio.google.com/apikey).
+2. У репозиторії GitHub відкрийте **Settings → Secrets and variables → Actions → New repository secret**.
+3. Створіть секрет **`GEMINI_API_KEY`**, і воркфлоу автоматично адаптуватиме навіть нестандартні зміни селекторів/API з Kotlin у Rust із перевіркою `cargo check` перед публікацією.
 
-- `sources/` — вихідний код кожного з 17 екстеншенів на Rust (`aidoku-rs`) + `MIHON_SOURCE.md`.
-- `templates/` — спільні Rust-шаблони (`mangabox`, `madara`).
-- `public/` — зібрані `.aix` пакети, PNG-іконки, `index.min.json`, `index.json` та веб-інтерфейс.
-- `scripts/mihon-to-aidoku.mjs` — CLI-конвертер для швидкого додавання нових Mihon-екстеншенів.
-- `scripts/sync-upstream.mjs` — автоматичний трекер і синхронізатор змін із `keiyoushi/extensions-source` та `Aidoku-Community/sources`.
-- `scripts/build-repo.mjs` — збирач та валідатор `public/index.min.json` і `.aix` архівів (`--verify`).
-- `extensions.json` — центральний реєстр активних екстеншенів і зафіксованих апстрім-комітів.
-- `.github/workflows/build.yaml` — CI/CD для компіляції при push у `main`.
-- `.github/workflows/sync-upstream.yaml` — автоматичний cron-воркфлоу синхронізації змін із Mihon.
+---
+
+<div align="center">
+<img src="https://capsule-render.vercel.app/api?type=waving&color=0:7c5cff,100:ff3b69&height=90&section=footer" alt="" width="100%">
+</div>

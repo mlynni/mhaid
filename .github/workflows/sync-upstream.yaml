@@ -75,7 +75,7 @@ jobs:
         if: steps.changes.outputs.changed == 'true'
         run: |
           rm -f public/sources/*.aix public/icons/*.png
-          aidoku build sources/*/package.aix --name "Mlyns Personal Sources"
+          aidoku build sources/*/package.aix --name "Mlyn Aidoku Sources"
           touch public/.nojekyll
           node scripts/build-repo.mjs
 

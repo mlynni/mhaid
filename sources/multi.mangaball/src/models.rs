@@ -29,9 +29,13 @@ pub struct Pagination {
 
 #[derive(Deserialize)]
 pub struct Title {
+	#[serde(alias = "_id")]
 	id: String,
 	name: Option<String>,
-	image: Option<Image>,
+	#[serde(default)]
+	image: Option<ImageValue>,
+	#[serde(default)]
+	background: Option<String>,
 	#[serde(default)]
 	description: Vec<String>,
 	#[serde(default, rename = "originalLanguage")]
@@ -69,17 +73,32 @@ fn string_or_vec<'de, D: Deserializer<'de>>(
 }
 
 #[derive(Deserialize)]
+#[serde(untagged)]
+enum ImageValue {
+	Url(String),
+	Object(Image),
+}
+
+#[derive(Deserialize)]
+#[serde(untagged)]
+enum ImageFileValue {
+	Url(String),
+	Object(Cover),
+}
+
+#[derive(Deserialize)]
 struct Image {
-	file: Option<String>,
+	file: Option<ImageFileValue>,
 	cdn_mangadex: Option<String>,
 	cdn_mangaupdate: Option<String>,
 	cdn_mangaupdates: Option<String>,
-	cover: Option<Cover>,
+	cover: Option<ImageFileValue>,
 }
 
 #[derive(Deserialize)]
 struct Cover {
 	path: Option<String>,
+	url: Option<String>,
 }
 
 #[derive(Deserialize)]
@@ -125,24 +144,93 @@ pub struct ChapterPages {
 	pub pages: Vec<String>,
 }
 
-impl Image {
-	// The site prefers its own copy over the external mirrors.
+fn is_dead_cover_host(url: &str) -> bool {
+	let lower = url.to_lowercase();
+	lower.contains("hentaicdn.org") || lower.contains("hencover")
+}
+
+fn normalize_cover_url(raw: String, is_cover_cdn: bool, is_mangadex: bool) -> Option<String> {
+	let cleaned = raw.trim().replace('\\', "/");
+	if cleaned.is_empty() || is_dead_cover_host(&cleaned) {
+		return None;
+	}
+	if cleaned.starts_with("http://") || cleaned.starts_with("https://") {
+		return Some(cleaned);
+	}
+	if cleaned.starts_with("//") {
+		return Some(format!("https:{cleaned}"));
+	}
+	if is_mangadex {
+		return Some(format!(
+			"https://uploads.mangadex.org/covers/{}",
+			cleaned.trim_start_matches('/')
+		));
+	}
+	if cleaned.starts_with("/media/")
+		|| cleaned.starts_with("media/")
+		|| cleaned.starts_with("/uploads/")
+		|| cleaned.starts_with("uploads/")
+		|| cleaned.starts_with("/storage/")
+		|| cleaned.starts_with("storage/")
+	{
+		return Some(format!("{BASE_URL}/{}", cleaned.trim_start_matches('/')));
+	}
+	if cleaned.starts_with("/covers/") || cleaned.starts_with("covers/") {
+		return Some(format!(
+			"https://bulbasaur.poke-black-and-white.net/{}",
+			cleaned.trim_start_matches('/')
+		));
+	}
+	if is_cover_cdn {
+		return Some(format!("{CDN_URL}/{}", cleaned.trim_start_matches('/')));
+	}
+	if cleaned.starts_with('/') {
+		return Some(format!("{BASE_URL}{cleaned}"));
+	}
+	Some(format!("{CDN_URL}/{cleaned}"))
+}
+
+impl ImageFileValue {
+	fn into_raw(self) -> Option<String> {
+		match self {
+			Self::Url(url) => Some(url),
+			Self::Object(cover) => cover
+				.path
+				.filter(|path| !path.trim().is_empty())
+				.or(cover.url),
+		}
+	}
+}
+
+impl ImageValue {
+	// Prefer Mangaball's hosted cover copy and fall back across mirrors, skipping dead hosts.
 	fn into_url(self) -> Option<String> {
-		let hosted = self
-			.cover
-			.and_then(|cover| cover.path)
-			.filter(|path| !path.is_empty())
-			.map(|path| format!("{CDN_URL}/{}", path.replace('\\', "/")));
-		[
-			hosted,
-			self.file,
-			self.cdn_mangadex,
-			self.cdn_mangaupdate,
-			self.cdn_mangaupdates,
-		]
-		.into_iter()
-		.flatten()
-		.find(|url| !url.is_empty())
+		match self {
+			Self::Url(url) => normalize_cover_url(url, false, false),
+			Self::Object(image) => {
+				let hosted = image
+					.cover
+					.and_then(ImageFileValue::into_raw)
+					.and_then(|raw| normalize_cover_url(raw, true, false));
+				let mangadex = image
+					.cdn_mangadex
+					.and_then(|raw| normalize_cover_url(raw, false, true));
+				let file = image
+					.file
+					.and_then(ImageFileValue::into_raw)
+					.and_then(|raw| normalize_cover_url(raw, false, false));
+				let mangaupdates = image
+					.cdn_mangaupdates
+					.and_then(|raw| normalize_cover_url(raw, false, false));
+				let mangaupdate = image
+					.cdn_mangaupdate
+					.and_then(|raw| normalize_cover_url(raw, false, false));
+				[hosted, mangadex, file, mangaupdates, mangaupdate]
+					.into_iter()
+					.flatten()
+					.next()
+			}
+		}
 	}
 }
 
@@ -181,8 +269,12 @@ impl Title {
 			Some("cancelled") => MangaStatus::Cancelled,
 			_ => MangaStatus::Unknown,
 		};
+		let cover = self
+			.image
+			.and_then(ImageValue::into_url)
+			.or_else(|| self.background.and_then(|bg| normalize_cover_url(bg, false, false)));
 		let mut manga = Manga {
-			cover: self.image.and_then(Image::into_url),
+			cover,
 			status,
 			content_rating,
 			..Default::default()

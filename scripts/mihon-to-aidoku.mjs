@@ -720,7 +720,7 @@ function updateExtensionsRegistry(id, info, mihonRelPath, status) {
 	const registry = fs.existsSync(EXTENSIONS_FILE)
 		? readJson(EXTENSIONS_FILE)
 		: {
-				name: "Mlyns Personal Sources",
+				name: "Mlyn Aidoku Sources",
 				repository: "mhaid",
 				mihonUpstream: "https://github.com/keiyoushi/extensions-source",
 				aidokuUpstream: "https://github.com/Aidoku-Community/sources",
