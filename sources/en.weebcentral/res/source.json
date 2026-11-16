@@ -2,13 +2,21 @@
 	"info": {
 		"id": "en.weebcentral",
 		"name": "Weeb Central",
-		"version": 8,
+		"version": 9,
 		"url": "https://weebcentral.com",
 		"contentRating": 1,
 		"languages": ["en"],
 		"minAppVersion": "0.7.1"
 	},
 	"listings": [
+		{
+			"id": "popular",
+			"name": "Popular"
+		},
+		{
+			"id": "latest",
+			"name": "Latest Updates"
+		},
 		{
 			"id": "hot",
 			"name": "Hot Updates"

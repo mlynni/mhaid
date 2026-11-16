@@ -6,10 +6,10 @@
 
 | Джерело | ID в Aidoku | Мови | Версія | Мін. версія Aidoku | Базовий URL |
 |---|---|---|---:|---:|---|
-| **Weeb Central** | `en.weebcentral` | `en` | v8 | `0.7.1` | https://weebcentral.com |
-| **Comix** | `en.comix` | `en` | v27 | `0.8.4` | https://comix.to |
-| **MangaDex** | `multi.mangadex` | 54 мови (включно з `uk`, `en`) | v15 | `0.7.1` | https://mangadex.org |
-| **MangaFire** | `multi.mangafire` | `en`, `es`, `es-419`, `fr`, `ja`, `pt`, `pt-BR` | v8 | `0.7.1` | https://mangafire.to |
+| **Weeb Central** | `en.weebcentral` | `en` | v9 | `0.7.1` | https://weebcentral.com |
+| **Comix** | `en.comix` | `en` | v28 | `0.8.4` | https://comix.to |
+| **MangaDex** | `multi.mangadex` | 54 мови (включно з `uk`, `en`) | v16 | `0.7.1` | https://mangadex.org |
+| **MangaFire** | `multi.mangafire` | `en`, `es`, `es-419`, `fr`, `ja`, `pt`, `pt-BR` | v9 | `0.7.1` | https://mangafire.to |
 
 ## Як додати в додаток Aidoku
 

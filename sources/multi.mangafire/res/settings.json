@@ -1,0 +1,47 @@
+[
+	{
+		"type": "group",
+		"title": "Content",
+		"items": [
+			{
+				"type": "multi-select",
+				"key": "content_rating",
+				"title": "Content Rating",
+				"values": ["safe", "suggestive", "erotica", "pornographic"],
+				"titles": ["Safe", "Suggestive", "Erotica", "Pornographic"],
+				"default": ["safe", "suggestive"],
+				"refreshes": ["content", "listings"]
+			}
+		]
+	},
+	{
+		"type": "group",
+		"title": "Chapters",
+		"items": [
+			{
+				"type": "switch",
+				"key": "show_as_volumes",
+				"title": "Prefer Volume Release",
+				"subtitle": "Requires Chapter List Refresh to Apply",
+				"default": false,
+				"refreshes": ["content"]
+			},
+			{
+				"type": "switch",
+				"key": "merge_chapters",
+				"title": "Merge Duplicate Chapters",
+				"subtitle": "Requires Chapter List Refresh to Apply",
+				"default": false,
+				"refreshes": ["content"]
+			},
+			{
+				"type": "switch",
+				"key": "prefer_official",
+				"title": "Prefer Official Chapters",
+				"default": true,
+				"requires": "merge_chapters",
+				"refreshes": ["content"]
+			}
+		]
+	}
+]

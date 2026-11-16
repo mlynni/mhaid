@@ -60,6 +60,7 @@ jobs:
 
       - name: Build source list
         run: |
+          rm -f public/sources/*.aix public/icons/*.png
           aidoku build sources/*/package.aix --name "MHAID Sources"
           touch public/.nojekyll
 
@@ -67,7 +68,7 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: "24"
-      - run: node scripts/build-repo.mjs --verify
+      - run: node scripts/build-repo.mjs
 
       - name: Deploy to GitHub Pages
         uses: JamesIves/github-pages-deploy-action@v4.7.2

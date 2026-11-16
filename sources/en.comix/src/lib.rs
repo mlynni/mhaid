@@ -1,12 +1,13 @@
 #![no_std]
 use aidoku::{
 	Chapter, DeepLinkHandler, DeepLinkResult, FilterValue, HashMap, Home, HomeComponent,
-	HomeLayout, HomePartialResult, Link, LinkValue, Listing, ListingProvider, Manga,
-	MangaPageResult, MangaWithChapter, NotificationHandler, Page, PageContent, Result, Source,
-	WebLoginHandler,
+	HomeLayout, HomePartialResult, ImageRequestProvider, ImageResponse, Link, LinkValue, Listing,
+	ListingProvider, Manga, MangaPageResult, MangaWithChapter, NotificationHandler, Page,
+	PageContent, PageContext, PageImageProcessor, Result, Source, WebLoginHandler,
 	alloc::{String, Vec, string::ToString, vec},
 	helpers::uri::{QueryParameters, encode_uri_component},
 	imports::{
+		canvas::ImageRef,
 		net::{Request, RequestError, Response},
 		std::{current_date, send_partial_result},
 	},
@@ -14,6 +15,7 @@ use aidoku::{
 };
 use core::cell::RefCell;
 
+mod descrambler;
 mod helpers;
 mod models;
 mod settings;
@@ -214,6 +216,7 @@ impl Source for Comix {
 			let limit = 100;
 			let mut page = 1;
 			let deduplicate = settings::dedupchapter();
+			let blacklist = settings::scanlator_blacklist();
 			let mut chapter_map: HashMap<String, ComixChapter> = HashMap::new();
 			let mut chapter_list: Vec<ComixChapter> = Vec::new();
 
@@ -227,7 +230,16 @@ impl Source for Comix {
 				let response = web_view.build_request(&url)?.send()?;
 				let res = web_view.decode_json_owned::<ChapterDetailsResponse>(&response)?;
 
-				let items = res.result.items;
+				let items = res.result.items.into_iter().filter(|ch| {
+					if blacklist.is_empty() {
+						return true;
+					}
+					!ch.group.as_ref().is_some_and(|g| {
+						let name_lower = g.name.trim().to_ascii_lowercase();
+						let id_str = g.id.to_string();
+						blacklist.iter().any(|b| b == &name_lower || b == &id_str)
+					})
+				});
 
 				if deduplicate {
 					for item in items {
@@ -285,12 +297,51 @@ impl Source for Comix {
 				} else {
 					format!("{base_url}/{}", page.url.trim_start_matches('/'))
 				};
+				let mut context = PageContext::new();
+				context.insert("url".into(), url.clone());
+				if let Some(v) = page.scramble_seed {
+					context.insert("x-scramble-seed".into(), v.to_string());
+				}
+				if let Some(v) = page.scramble_grid {
+					context.insert("x-scramble-grid".into(), v);
+				}
+				if let Some(v) = page.scramble_algo {
+					context.insert("x-scramble-algo".into(), v);
+				}
+				if let Some(v) = page.scramble_hash {
+					context.insert("x-scramble-hash".into(), v);
+				}
+				if let Some(v) = page.enc_seed {
+					context.insert("x-enc-seed".into(), v.to_string());
+				}
+				if let Some(v) = page.enc_len {
+					context.insert("x-enc-len".into(), v.to_string());
+				}
+				if let Some(v) = page.enc_algo {
+					context.insert("x-enc-algo".into(), v);
+				}
 				Page {
-					content: PageContent::url(url),
+					content: PageContent::url_context(url, context),
 					..Default::default()
 				}
 			})
 			.collect())
+	}
+}
+
+impl ImageRequestProvider for Comix {
+	fn get_image_request(&self, url: String, _context: Option<PageContext>) -> Result<Request> {
+		Ok(Request::get(url)?)
+	}
+}
+
+impl PageImageProcessor for Comix {
+	fn process_page_image(
+		&self,
+		response: ImageResponse,
+		context: Option<PageContext>,
+	) -> Result<ImageRef> {
+		descrambler::process_page_image(response, context)
 	}
 }
 
@@ -513,7 +564,15 @@ impl NotificationHandler for Comix {
 
 impl DeepLinkHandler for Comix {
 	fn handle_deep_link(&self, url: String) -> Result<Option<DeepLinkResult>> {
-		let Some(path) = url.strip_prefix(&format!("{BASE_URL}/")) else {
+		let path = [
+			"https://comix.to/",
+			"https://www.comix.to/",
+			"https://comix.ws/",
+			"https://www.comix.ws/",
+		]
+		.iter()
+		.find_map(|prefix| url.strip_prefix(prefix));
+		let Some(path) = path else {
 			return Ok(None);
 		};
 
@@ -569,6 +628,8 @@ register_source!(
 	Comix,
 	Home,
 	ListingProvider,
+	ImageRequestProvider,
+	PageImageProcessor,
 	NotificationHandler,
 	DeepLinkHandler,
 	WebLoginHandler

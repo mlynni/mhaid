@@ -18,7 +18,7 @@ mod model;
 
 const BASE_URL: &str = "https://weebcentral.com";
 const REFERER: &str = "https://weebcentral.com/";
-const FETCH_LIMIT: i32 = 24;
+const FETCH_LIMIT: i32 = 32;
 
 struct WeebCentral;
 
@@ -54,7 +54,7 @@ impl Source for WeebCentral {
 			.map(|elements| {
 				elements
 					.filter_map(|element| {
-						let cover = element.select_first("img")?.attr("abs:src");
+						let cover = helper::source_img(&element);
 
 						let title_element = element.select_first("a")?;
 						let mut title = title_element.text().unwrap_or_default();
@@ -63,6 +63,7 @@ impl Source for WeebCentral {
 						if title.starts_with(OFFICIAL_PREFIX) {
 							title = title[OFFICIAL_PREFIX.len()..].trim().into();
 						}
+						let title = helper::clean_title_if_needed(title);
 
 						let url = title_element.attr("abs:href")?;
 						let key = url.strip_prefix(BASE_URL).map(String::from)?;
@@ -78,7 +79,7 @@ impl Source for WeebCentral {
 			})
 			.unwrap_or_default();
 
-		let has_next_page = !entries.is_empty();
+		let has_next_page = html.select_first("button").is_some();
 
 		Ok(MangaPageResult {
 			entries,
@@ -112,15 +113,71 @@ impl Source for WeebCentral {
 
 			let get_text = |el: &Element, sel: &str| el.select_first(sel).and_then(|e| e.text());
 
-			manga.title = get_text(&title_element, "h1").unwrap_or(manga.title);
-			manga.cover = info_element
-				.select_first("img")
-				.and_then(|el| el.attr("abs:src"));
+			manga.title = get_text(&title_element, "h1")
+				.map(helper::clean_title_if_needed)
+				.unwrap_or(manga.title);
+			manga.cover = helper::source_img(&info_element);
 			manga.authors = info_element
 				.select("ul > li:has(strong:contains(Author)) > span > a")
 				.map(|els| els.filter_map(|el| el.text()).collect::<Vec<String>>());
-			manga.description =
-				get_text(&title_element, "li:has(strong:contains(Description)) > p");
+
+			let mut desc = get_text(&title_element, "li:has(strong:contains(Description)) > p")
+				.map(|d| d.replace("NOTE: ", "\n\nNOTE: "))
+				.unwrap_or_default();
+
+			if let Some(related) = title_element.select("li:has(strong:contains(Related Series)) li") {
+				let items: Vec<String> = related
+					.filter_map(|series| {
+						let link = series.select_first("a")?;
+						let link_text = link.text()?;
+						let href = link.attr("abs:href").or_else(|| link.attr("href"))?;
+						let relation = series
+							.select_first("span")
+							.and_then(|s| s.text())
+							.unwrap_or_default();
+						let suffix = if relation.is_empty() {
+							String::new()
+						} else {
+							format!(" {relation}")
+						};
+						Some(format!("\n- [{link_text}]({href}){suffix}"))
+					})
+					.collect();
+				if !items.is_empty() {
+					desc.push_str("\n\nRelated Series(s):");
+					for item in items {
+						desc.push_str(&item);
+					}
+				}
+			}
+
+			if let Some(alt_titles) = title_element.select("li:has(strong:contains(Associated Name)) li") {
+				let items: Vec<String> = alt_titles.filter_map(|el| el.text()).collect();
+				if !items.is_empty() {
+					desc.push_str("\n\nAssociated Name(s):");
+					for item in items {
+						desc.push_str(&format!("\n- {item}"));
+					}
+				}
+			}
+
+			if let Some(trackers) = html.select("li:has(strong:contains(Track)) span[data-tip] > a") {
+				let items: Vec<String> = trackers
+					.filter_map(|tracker| {
+						let tip = tracker.parent().and_then(|p| p.attr("data-tip"))?;
+						let href = tracker.attr("abs:href").or_else(|| tracker.attr("href"))?;
+						Some(format!("\n- [{tip}]({href})"))
+					})
+					.collect();
+				if !items.is_empty() {
+					desc.push_str("\n\nTracker(s):");
+					for item in items {
+						desc.push_str(&item);
+					}
+				}
+			}
+
+			manga.description = (!desc.trim().is_empty()).then(|| desc.trim().into());
 			manga.url = Some(manga_url.clone());
 			manga.tags = info_element
 				.select("ul > li:has(strong:contains(Tag),strong:contains(Type)) a")
@@ -172,8 +229,12 @@ impl Source for WeebCentral {
 			let html = Request::get(&url)?.html()?;
 
 			manga.chapters = html.select("div[x-data]").map(|elements| {
-				elements
-					.filter_map(|element| {
+				let elements_vec: Vec<Element> = elements.collect();
+				let total = elements_vec.len();
+				elements_vec
+					.into_iter()
+					.enumerate()
+					.filter_map(|(idx, element)| {
 						let url = element
 							.select_first("a")
 							.and_then(|el| el.attr("abs:href"))?;
@@ -184,17 +245,25 @@ impl Source for WeebCentral {
 							.select_first("span.flex > span")
 							.and_then(|el| el.text());
 
-						let mut chapter_number = title
-							.as_ref()
-							.and_then(|t| t.rsplit(' ').next())
-							.and_then(|num| num.parse::<f32>().ok());
+						let use_indexing = title
+							.as_deref()
+							.is_some_and(helper::has_season_prefix);
+
+						let mut chapter_number = if use_indexing {
+							Some((total - idx) as f32)
+						} else {
+							title
+								.as_ref()
+								.and_then(|t| t.rsplit(' ').next())
+								.and_then(|num| num.parse::<f32>().ok())
+						};
 
 						let is_volume = title.as_ref().is_some_and(|t| t.contains("Volume"));
 						let is_chapter = title.as_ref().is_some_and(|t| t.contains("Chapter"));
 
 						let (final_title, volume_number) = match (is_volume, is_chapter) {
 							(true, _) => (None, chapter_number.take()),
-							(_, true) => (None, None),
+							(_, true) if !use_indexing => (None, None),
 							_ => (title, None),
 						};
 
@@ -204,12 +273,21 @@ impl Source for WeebCentral {
 							.and_then(|dt| chrono::DateTime::parse_from_rfc3339(&dt).ok())
 							.map(|d| d.timestamp());
 
+						let is_official = element.select("img").is_some_and(|imgs| {
+							imgs.into_iter().any(|img| {
+								img.attr("src")
+									.is_some_and(|src| src.to_ascii_lowercase().contains("official"))
+							})
+						});
+						let scanlators = is_official.then(|| vec!["Official".into()]);
+
 						Some(Chapter {
 							key,
 							title: final_title,
 							chapter_number,
 							volume_number,
 							date_uploaded,
+							scanlators,
 							url: Some(url),
 							..Default::default()
 						})
@@ -247,38 +325,60 @@ impl Source for WeebCentral {
 }
 
 impl ListingProvider for WeebCentral {
-	fn get_manga_list(&self, listing: Listing, _page: i32) -> Result<MangaPageResult> {
-		if listing.id == "hot" {
-			let html = Request::get(format!("{BASE_URL}/hot-updates"))?.html()?;
+	fn get_manga_list(&self, listing: Listing, page: i32) -> Result<MangaPageResult> {
+		match listing.id.as_str() {
+			"popular" => self.get_search_manga_list(
+				None,
+				page,
+				vec![FilterValue::Sort {
+					id: "Sort".into(),
+					index: 2,
+					ascending: false,
+				}],
+			),
+			"latest" => self.get_search_manga_list(
+				None,
+				page,
+				vec![FilterValue::Sort {
+					id: "Sort".into(),
+					index: 5,
+					ascending: false,
+				}],
+			),
+			"hot" => {
+				let html = Request::get(format!("{BASE_URL}/hot-updates"))?.html()?;
 
-			let entries = html
-				.select("article:not(.hidden)")
-				.map(|els| {
-					els.filter_map(|el| {
-						let manga_key = el
-							.select_first("a")?
-							.attr("href")?
-							.trim_start_matches(BASE_URL)
-							.into();
-						let cover = el.select_first("img")?.attr("src");
-						let title = el.select_first(".text-lg")?.text()?;
-						Some(Manga {
-							key: manga_key,
-							title,
-							cover,
-							..Default::default()
+				let entries = html
+					.select("article:not(.hidden)")
+					.map(|els| {
+						els.filter_map(|el| {
+							let manga_key = el
+								.select_first("a")?
+								.attr("href")?
+								.trim_start_matches(BASE_URL)
+								.into();
+							let cover = helper::source_img(&el);
+							let title = el
+								.select_first(".text-lg")?
+								.text()
+								.map(helper::clean_title_if_needed)?;
+							Some(Manga {
+								key: manga_key,
+								title,
+								cover,
+								..Default::default()
+							})
 						})
+						.collect::<Vec<_>>()
 					})
-					.collect::<Vec<_>>()
-				})
-				.unwrap_or_default();
+					.unwrap_or_default();
 
-			Ok(MangaPageResult {
-				entries,
-				has_next_page: false,
-			})
-		} else {
-			bail!("Invalid listing");
+				Ok(MangaPageResult {
+					entries,
+					has_next_page: false,
+				})
+			}
+			_ => bail!("Invalid listing"),
 		}
 	}
 }
@@ -450,4 +550,10 @@ impl DeepLinkHandler for WeebCentral {
 	}
 }
 
-register_source!(WeebCentral, ListingProvider, Home, DeepLinkHandler);
+register_source!(
+	WeebCentral,
+	ListingProvider,
+	Home,
+	ImageRequestProvider,
+	DeepLinkHandler
+);

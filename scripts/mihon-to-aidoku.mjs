@@ -47,18 +47,18 @@ Usage:
   node scripts/mihon-to-aidoku.mjs --list
 
 Options:
-  --lang <code|all>   Preferred language folder in keiyoushi/extensions-source (e.g. en, uk, all)
-  --from-scratch      Force generating a fresh Aidoku Rust crate from Mihon Kotlin instead of
-                      importing an existing crate from Aidoku-Community/sources
-  --dry-run           Inspect and print extracted Mihon metadata without writing files
-  --sync-docs         Generate/update MIHON_SOURCE.md in every sources/<id>/ from Mihon upstream
-  --list              Show all extensions registered in extensions.json
-  --help              Show this help message
+  --lang <code|all>         Preferred language folder in keiyoushi/extensions-source (e.g. en, uk, all)
+  --use-community-fallback  Import an existing crate from Aidoku-Community/sources if present instead
+                            of converting directly from Mihon Kotlin source
+  --dry-run                 Inspect and print extracted Mihon metadata without writing files
+  --sync-docs               Generate/update MIHON_SOURCE.md in every sources/<id>/ from Mihon upstream
+  --list                    Show all extensions registered in extensions.json
+  --help                    Show this help message
 
 Examples:
-  node scripts/mihon-to-aidoku.mjs weebcentral
   node scripts/mihon-to-aidoku.mjs bato --lang all
-  node scripts/mihon-to-aidoku.mjs asurascans --lang en --from-scratch
+  node scripts/mihon-to-aidoku.mjs asurascans --lang en
+  node scripts/mihon-to-aidoku.mjs weebcentral --use-community-fallback
 `);
 }
 
@@ -132,7 +132,6 @@ function ensureKeiyoushiCache() {
 function findMihonExtensionPath(name, preferredLang) {
 	const cleanName = name.toLowerCase().replace(/[^a-z0-9_-]/g, "");
 
-	// 1. Check already-checked-out local directories first (works offline)
 	for (const root of getLocalKeiyoushiRoots()) {
 		const srcRoot = path.join(root, "src");
 		if (!fs.existsSync(srcRoot)) continue;
@@ -151,7 +150,6 @@ function findMihonExtensionPath(name, preferredLang) {
 		}
 	}
 
-	// 2. Discover in keiyoushi git tree and sparse-checkout that directory
 	const repoRoot = ensureKeiyoushiCache();
 	const treeOutput = runGit(["ls-tree", "-d", "--name-only", "HEAD:src"], repoRoot);
 	const langs = preferredLang
@@ -202,6 +200,41 @@ function uniqueSorted(items) {
 	return Array.from(new Set(items.filter(Boolean))).sort();
 }
 
+function extractPreferencesFromKotlin(code) {
+	const prefs = [];
+	const prefRegex =
+		/(SwitchPreferenceCompat|ListPreference|MultiSelectListPreference|EditTextPreference)\([^)]*\)\.apply\s*\{([\s\S]*?)\}/g;
+	for (const m of code.matchAll(prefRegex)) {
+		const kind = m[1];
+		const body = m[2];
+		const key = body.match(/\bkey\s*=\s*"([^"]+)"/)?.[1] || body.match(/\bkey\s*=\s*(\w+)/)?.[1];
+		const title = body.match(/\btitle\s*=\s*"([^"]+)"/)?.[1];
+		if (!key || !title) continue;
+		prefs.push({ kind, key, title });
+	}
+	return prefs;
+}
+
+function extractFilterSpecsFromKotlin(code) {
+	const specs = [];
+	for (const m of code.matchAll(/class\s+(\w*Filter\w*)[^:]*:\s*([^\n{]+)/g)) {
+		const className = m[1];
+		const base = m[2].trim();
+		let aidokuType = null;
+		if (base.includes("Sort")) aidokuType = "sort";
+		else if (base.includes("Text")) aidokuType = "text";
+		else if (base.includes("CheckBox")) aidokuType = "check";
+		else if (base.includes("Select") || base.includes("UriPartFilter")) aidokuType = "select";
+		else if (base.includes("Group") || base.includes("MultiSelect") || base.includes("TriSelect")) {
+			aidokuType = "multi-select";
+		}
+		if (aidokuType) {
+			specs.push({ className, aidokuType });
+		}
+	}
+	return specs;
+}
+
 export function parseMihonExtension(extDir, relPath = "") {
 	const gradleKtsPath = path.join(extDir, "build.gradle.kts");
 	const gradlePath = path.join(extDir, "build.gradle");
@@ -213,7 +246,6 @@ export function parseMihonExtension(extDir, relPath = "") {
 
 	const gradleText = gradleFile ? fs.readFileSync(gradleFile, "utf8") : "";
 
-	// Parse both modern keiyoushi { ... } DSL and legacy extName/baseUrl/themePkg
 	const nameMatch =
 		gradleText.match(/\bname\s*=\s*"([^"]+)"/) ||
 		gradleText.match(/\bextName\s*=\s*['"]([^'"]+)['"]/);
@@ -226,7 +258,6 @@ export function parseMihonExtension(extDir, relPath = "") {
 	const contentWarningMatch = gradleText.match(/ContentWarning\.(\w+)/);
 	const isNsfwLegacy = /\bisNsfw\s*=\s*true\b/.test(gradleText);
 
-	// Extract languages
 	const languages = [];
 	const listMatch = gradleText.match(/listOf\(([\s\S]*?)\)\.forEach/);
 	if (listMatch) {
@@ -244,7 +275,6 @@ export function parseMihonExtension(extDir, relPath = "") {
 		languages.push(folderLang === "all" ? "en" : folderLang);
 	}
 
-	// Extract base URLs / mirrors
 	const baseUrls = [];
 	for (const m of gradleText.matchAll(/\bbaseUrl\s*=\s*['"](https?:\/\/[^'"]+)['"]/g)) {
 		baseUrls.push(m[1]);
@@ -256,7 +286,6 @@ export function parseMihonExtension(extDir, relPath = "") {
 		}
 	}
 
-	// Collect Kotlin files and assets
 	const ktFiles = collectFilesRecursive(path.join(extDir, "src"), (n) => n.endsWith(".kt"));
 	const assetFiles = collectFilesRecursive(path.join(extDir, "assets"));
 	const iconCandidates = [
@@ -276,6 +305,8 @@ export function parseMihonExtension(extDir, relPath = "") {
 	const endpoints = [];
 	const headers = [];
 	const filters = [];
+	const filterSpecs = [];
+	const preferences = [];
 
 	for (const ktPath of ktFiles) {
 		const code = fs.readFileSync(ktPath, "utf8");
@@ -305,6 +336,8 @@ export function parseMihonExtension(extDir, relPath = "") {
 		for (const m of code.matchAll(/class\s+(\w*Filter\w*)\b/g)) {
 			filters.push(m[1]);
 		}
+		filterSpecs.push(...extractFilterSpecsFromKotlin(code));
+		preferences.push(...extractPreferencesFromKotlin(code));
 		if (baseUrls.length === 0) {
 			const ktBase = code.match(/override\s+val\s+baseUrl\s*=\s*"([^"]+)"/);
 			if (ktBase) baseUrls.push(ktBase[1]);
@@ -340,10 +373,85 @@ export function parseMihonExtension(extDir, relPath = "") {
 		endpoints: uniqueSorted(endpoints),
 		headers: uniqueSorted(headers),
 		filters: uniqueSorted(filters),
+		filterSpecs,
+		preferences,
 		ktFiles: ktFiles.map((p) => path.relative(extDir, p).replace(/\\/g, "/")),
 		assetFiles: assetFiles.map((p) => path.relative(extDir, p).replace(/\\/g, "/")),
 		iconPath: iconPath || null,
 	};
+}
+
+function buildFiltersJson(info) {
+	const result = [];
+	const seenIds = new Set();
+	for (const spec of info.filterSpecs || []) {
+		const id = spec.className.replace(/Filter$/, "").toLowerCase() || spec.aidokuType;
+		if (seenIds.has(id)) continue;
+		seenIds.add(id);
+		const title = spec.className.replace(/Filter$/, "").replace(/([A-Z])/g, " $1").trim() || spec.className;
+		if (spec.aidokuType === "sort") {
+			result.push({
+				type: "sort",
+				id,
+				title,
+				canAscend: true,
+				options: ["Popular", "Latest"],
+				default: { index: 0, ascending: false },
+			});
+		} else if (spec.aidokuType === "text") {
+			result.push({ type: "text", id, title, placeholder: title });
+		} else if (spec.aidokuType === "check") {
+			result.push({ type: "check", id, title });
+		}
+	}
+	return result;
+}
+
+function buildSettingsJson(info) {
+	if (!info.preferences || info.preferences.length === 0) return null;
+	const items = [];
+	const seen = new Set();
+	for (const pref of info.preferences) {
+		if (seen.has(pref.key)) continue;
+		seen.add(pref.key);
+		if (pref.kind === "SwitchPreferenceCompat") {
+			items.push({
+				type: "switch",
+				key: pref.key,
+				title: pref.title,
+				default: false,
+				refreshes: ["content"],
+			});
+		} else if (pref.kind === "EditTextPreference") {
+			items.push({
+				type: "text",
+				key: pref.key,
+				title: pref.title,
+				default: "",
+				refreshes: ["content"],
+			});
+		} else if (pref.kind === "ListPreference") {
+			items.push({
+				type: "select",
+				key: pref.key,
+				title: pref.title,
+				values: ["default"],
+				titles: ["Default"],
+				default: "default",
+				refreshes: ["content"],
+			});
+		} else if (pref.kind === "MultiSelectListPreference") {
+			items.push({
+				type: "multi-select",
+				key: pref.key,
+				title: pref.title,
+				values: [],
+				titles: [],
+				refreshes: ["content"],
+			});
+		}
+	}
+	return items.length > 0 ? [{ type: "group", title: "Preferences", items }] : null;
 }
 
 function renderMihonDoc(info) {
@@ -390,14 +498,12 @@ function findAidokuCommunitySource(candidates) {
 		for (const id of candidates) {
 			const srcDir = path.join(mainRoot, "sources", id);
 			if (fs.existsSync(path.join(srcDir, "Cargo.toml"))) {
-				// Also locate matching gh-pages prebuilt .aix if present
-				let ghPagesRoot = roots.ghPages.find((g) => fs.existsSync(path.join(g, "sources")));
+				const ghPagesRoot = roots.ghPages.find((g) => fs.existsSync(path.join(g, "sources")));
 				return { id, srcDir, mainRoot, ghPagesRoot };
 			}
 		}
 	}
 
-	// Fallback: try checking Aidoku-Community/sources via sparse clone if not cached locally
 	const cacheMain = path.join(CACHE_DIR, "aidoku-community-main");
 	try {
 		if (!fs.existsSync(path.join(cacheMain, ".git"))) {
@@ -466,7 +572,9 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
-aidoku = { git = "https://github.com/Aidoku/aidoku-rs.git", version = "0.3.0" }
+aidoku = { git = "https://github.com/Aidoku/aidoku-rs.git", version = "0.3.0", features = ["json"] }
+serde = { version = "1.0", default-features = false, features = ["derive", "alloc"] }
+serde_json = { version = "1.0", default-features = false, features = ["alloc"] }
 
 [dev-dependencies]
 aidoku = { git = "https://github.com/Aidoku/aidoku-rs.git", features = ["test"] }
@@ -503,13 +611,17 @@ lto = true
 		],
 	});
 
-	writeJson(path.join(resDir, "filters.json"), []);
+	writeJson(path.join(resDir, "filters.json"), buildFiltersJson(info));
+	const settingsJson = buildSettingsJson(info);
+	if (settingsJson) {
+		writeJson(path.join(resDir, "settings.json"), settingsJson);
+	}
 
 	if (info.iconPath && fs.existsSync(info.iconPath)) {
 		fs.copyFileSync(info.iconPath, path.join(resDir, "icon.png"));
 	}
 
-	const firstSelector = info.selectors[0] || "div.manga-item";
+	const firstSelector = info.selectors[0] || "div.manga-item a";
 	const libRs = `#![no_std]
 use aidoku::{
 	Chapter, DeepLinkHandler, DeepLinkResult, FilterValue, Listing, ListingProvider, Manga,
@@ -521,7 +633,7 @@ use aidoku::{
 
 const BASE_URL: &str = "${info.baseUrl || "https://example.com"}";
 
-// Ported from Mihon (${info.relPath})
+// Ported directly from Mihon (${info.relPath})
 // Selectors found: ${info.selectors.slice(0, 6).join(", ") || "none"}
 // Endpoints found: ${info.endpoints.slice(0, 6).join(", ") || "none"}
 struct ${structName};
@@ -547,9 +659,10 @@ impl Source for ${structName} {
 			.map(|els| {
 				els.filter_map(|el| {
 					let title = el.text()?;
-					let href = el.attr("href")?;
+					let href = el.attr("abs:href").or_else(|| el.attr("href"))?;
+					let key = href.strip_prefix(BASE_URL).map(String::from).unwrap_or(href.clone());
 					Some(Manga {
-						key: href.clone(),
+						key,
 						title,
 						url: Some(href),
 						..Default::default()
@@ -577,6 +690,7 @@ impl Source for ${structName} {
 
 	fn get_page_list(&self, _manga: Manga, _chapter: Chapter) -> Result<Vec<Page>> {
 		// TODO: Complete page extraction using MIHON_SOURCE.md reference
+		let _ = PageContent::url("");
 		Ok(Vec::<Page>::new())
 	}
 }
@@ -691,7 +805,10 @@ function addExtension(name, opts) {
 	let finalId = info.suggestedId;
 	let status = "scaffold";
 
-	const communityMatch = !opts.fromScratch ? findAidokuCommunitySource(candidateIds) : null;
+	const communityMatch = opts.useCommunityFallback
+		? findAidokuCommunitySource(candidateIds)
+		: null;
+
 	if (communityMatch) {
 		finalId = communityMatch.id;
 		const destDir = path.join(SOURCES_DIR, finalId);
@@ -701,7 +818,6 @@ function addExtension(name, opts) {
 		const srcJson = readJson(path.join(destDir, "res", "source.json")).info || {};
 		const ver = srcJson.version || 1;
 
-		// Copy prebuilt .aix and icon if available from gh-pages
 		if (communityMatch.ghPagesRoot) {
 			const aixName = `${finalId}-v${ver}.aix`;
 			const iconName = `${finalId}-v${ver}.png`;
@@ -717,17 +833,18 @@ function addExtension(name, opts) {
 			}
 		}
 		status = "ready";
-		console.log(`Imported Aidoku crate "${finalId}" from Aidoku-Community/sources.`);
+		console.log(`Imported Aidoku crate "${finalId}" from Aidoku-Community/sources (--use-community-fallback).`);
 	} else {
 		scaffoldAidokuCrate(finalId, info);
 		status = "scaffold";
-		console.log(`Scaffolded new Aidoku Rust crate in sources/${finalId}/ (needs Rust logic review & GitHub Actions build).`);
+		console.log(
+			`Converted Mihon source "${found.relPath}" into Aidoku Rust crate in sources/${finalId}/ (complete any custom Rust parsing using MIHON_SOURCE.md, then push to main to compile via GitHub Actions).`
+		);
 	}
 
 	fs.writeFileSync(path.join(SOURCES_DIR, finalId, "MIHON_SOURCE.md"), renderMihonDoc(info), "utf8");
 	updateExtensionsRegistry(finalId, info, found.relPath, status);
 
-	// Rebuild index.min.json if any prebuilt .aix exists
 	execFileSync(process.execPath, [path.join(__dirname, "build-repo.mjs")], {
 		cwd: ROOT_DIR,
 		stdio: "inherit",
@@ -754,7 +871,7 @@ function main() {
 	if (langIdx !== -1 && args[langIdx + 1]) {
 		lang = args[langIdx + 1];
 	}
-	const fromScratch = args.includes("--from-scratch");
+	const useCommunityFallback = args.includes("--use-community-fallback");
 	const dryRun = args.includes("--dry-run");
 
 	const name = args.find((a, idx) => !a.startsWith("-") && (langIdx === -1 || idx !== langIdx + 1));
@@ -763,7 +880,7 @@ function main() {
 		process.exit(1);
 	}
 
-	addExtension(name, { lang, fromScratch, dryRun });
+	addExtension(name, { lang, useCommunityFallback, dryRun });
 }
 
 const isCli = process.argv[1] && path.resolve(process.argv[1]) === __filename;

@@ -1,0 +1,16 @@
+[
+	{
+		"type": "group",
+		"title": "General",
+		"items": [
+			{
+				"type": "switch",
+				"key": "cleanTitle",
+				"title": "Clean Title",
+				"subtitle": "Removes extra brackets or parentheses in title",
+				"default": false,
+				"refreshes": ["content"]
+			}
+		]
+	}
+]

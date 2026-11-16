@@ -25,6 +25,29 @@
 				"title": "Deduplicate Chapters",
 				"default": false,
 				"refreshes": ["content"]
+			},
+			{
+				"type": "text",
+				"key": "scanlatorBlacklist",
+				"title": "Scanlator Blacklist",
+				"placeholder": "Group names or IDs (e.g. Violet Scans, 307)",
+				"default": "",
+				"refreshes": ["content"]
+			},
+			{
+				"type": "switch",
+				"key": "showExtraInfo",
+				"title": "Show Extra Info in Description",
+				"subtitle": "Append score, year, rank, followers, and tracker links",
+				"default": true,
+				"refreshes": ["content"]
+			},
+			{
+				"type": "switch",
+				"key": "altNamesInDesc",
+				"title": "Show Alternative Names in Description",
+				"default": false,
+				"refreshes": ["content"]
 			}
 		],
 		"footer": "Official chapters (Comix-marked) are preferred, followed by the highest-voted or most recent. Warning: It can be slow on large lists."

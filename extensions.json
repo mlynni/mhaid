@@ -9,13 +9,13 @@
 			"name": "Weeb Central",
 			"mihonPath": "src/en/weebcentral",
 			"aidokuPath": "sources/en.weebcentral",
-			"version": 8,
+			"version": 9,
 			"languages": ["en"],
 			"contentRating": 1,
 			"baseURL": "https://weebcentral.com",
 			"minAppVersion": "0.7.1",
-			"packageFile": "en.weebcentral-v8.aix",
-			"iconFile": "en.weebcentral-v8.png",
+			"packageFile": "en.weebcentral-v9.aix",
+			"iconFile": "en.weebcentral-v9.png",
 			"status": "ready"
 		},
 		{
@@ -23,13 +23,13 @@
 			"name": "Comix",
 			"mihonPath": "src/en/comix",
 			"aidokuPath": "sources/en.comix",
-			"version": 27,
+			"version": 28,
 			"languages": ["en"],
 			"contentRating": 1,
 			"baseURL": "https://comix.to",
 			"minAppVersion": "0.8.4",
-			"packageFile": "en.comix-v27.aix",
-			"iconFile": "en.comix-v27.png",
+			"packageFile": "en.comix-v28.aix",
+			"iconFile": "en.comix-v28.png",
 			"status": "ready"
 		},
 		{
@@ -37,7 +37,7 @@
 			"name": "MangaDex",
 			"mihonPath": "src/all/mangadex",
 			"aidokuPath": "sources/multi.mangadex",
-			"version": 15,
+			"version": 16,
 			"languages": [
 				"en", "sq", "ar", "az", "bn", "bg", "my", "ca", "zh-Hans", "zh-Hant",
 				"hr", "cs", "da", "nl", "eo", "et", "fil", "fi", "fr", "ka", "de", "el",
@@ -48,8 +48,8 @@
 			"contentRating": 1,
 			"baseURL": "https://mangadex.org",
 			"minAppVersion": "0.7.1",
-			"packageFile": "multi.mangadex-v15.aix",
-			"iconFile": "multi.mangadex-v15.png",
+			"packageFile": "multi.mangadex-v16.aix",
+			"iconFile": "multi.mangadex-v16.png",
 			"status": "ready"
 		},
 		{
@@ -57,13 +57,13 @@
 			"name": "MangaFire",
 			"mihonPath": "src/all/mangafire",
 			"aidokuPath": "sources/multi.mangafire",
-			"version": 8,
+			"version": 9,
 			"languages": ["en", "es", "es-419", "fr", "ja", "pt", "pt-BR"],
 			"contentRating": 1,
 			"baseURL": "https://mangafire.to",
 			"minAppVersion": "0.7.1",
-			"packageFile": "multi.mangafire-v8.aix",
-			"iconFile": "multi.mangafire-v8.png",
+			"packageFile": "multi.mangafire-v9.aix",
+			"iconFile": "multi.mangafire-v9.png",
 			"status": "ready"
 		}
 	]

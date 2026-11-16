@@ -612,9 +612,13 @@ impl DeepLinkHandler for MangaDex {
 		let url = &url[BASE_URL.len()..]; // remove base url prefix
 
 		const TITLE_PATH: &str = "title/";
+		const MANGA_PATH: &str = "manga/";
 		const CHAPTER_PATH: &str = "chapter/";
 
-		if let Some(key) = url.strip_prefix(TITLE_PATH) {
+		if let Some(key) = url
+			.strip_prefix(TITLE_PATH)
+			.or_else(|| url.strip_prefix(MANGA_PATH))
+		{
 			// ex: https://mangadex.org/title/a96676e5-8ae2-425e-b549-7f15dd34a6d8/komi-san-wa-komyushou-desu
 			let end = key.find('/').unwrap_or(key.len());
 			let manga_key = &key[..end];

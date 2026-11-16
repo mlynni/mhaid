@@ -1,6 +1,6 @@
 use crate::{BASE_URL, helpers, settings};
 use aidoku::{
-	Chapter, ContentRating, Manga, MangaPageResult, MangaStatus, Viewer,
+	Chapter, ContentRating, HashMap, Manga, MangaPageResult, MangaStatus, Viewer,
 	alloc::{String, Vec, string::ToString, vec},
 	prelude::*,
 };
@@ -121,19 +121,36 @@ pub struct TermItems {
 pub struct ComixManga {
 	pub hid: String,
 	pub title: String,
+	#[serde(default, alias = "alt_titles")]
+	pub alt_titles: Vec<String>,
 	pub synopsis: Option<String>,
+	#[serde(default)]
 	pub r#type: String,
 	pub poster: Option<Poster>,
+	#[serde(default)]
 	pub status: String,
+	#[serde(default)]
 	pub content_rating: ComixContentRating,
+	#[serde(alias = "author")]
 	pub authors: Option<Vec<Term>>,
+	#[serde(alias = "artist")]
 	pub artists: Option<Vec<Term>>,
+	#[serde(alias = "genre")]
 	pub genres: Option<Vec<Term>>,
+	#[serde(alias = "theme")]
 	pub tags: Option<Vec<Term>>,
+	#[serde(alias = "demographic")]
+	pub demographics: Option<Vec<Term>>,
+	pub rated_avg: Option<f64>,
+	pub rated_count: Option<i64>,
+	pub follows_total: Option<i64>,
+	pub rank: Option<i32>,
+	pub year: Option<i32>,
+	pub original_language: Option<String>,
+	pub links: Option<HashMap<String, serde_json::Value>>,
 	pub latest_chapter: Option<f32>,
+	#[serde(default)]
 	pub url: String,
-	// pub has_chapters: bool,
-	// pub chapter_updated_at_formatted: Option<String>,
 }
 
 #[derive(Deserialize, Default)]
@@ -162,9 +179,58 @@ impl From<ComixContentRating> for ContentRating {
 
 impl ComixManga {
 	pub fn into_detailed_manga(mut self) -> Manga {
-		let description = self.synopsis.take();
+		let mut parts: Vec<String> = Vec::new();
+		if let Some(score) = self.rated_avg.filter(|&s| s > 0.0) {
+			parts.push(format!("Score: {score:.2}"));
+		}
+		if let Some(synopsis) = self.synopsis.take().filter(|s| !s.trim().is_empty()) {
+			parts.push(synopsis);
+		}
+		if settings::alt_names_in_desc() && !self.alt_titles.is_empty() {
+			parts.push(format!("Alternative Titles:\n- {}", self.alt_titles.join("\n- ")));
+		}
+		if settings::show_extra_info() {
+			let mut meta = Vec::new();
+			if let Some(y) = self.year.filter(|&y| y > 0) {
+				meta.push(format!("Year: {y}"));
+			}
+			if let Some(lang) = self.original_language.as_deref().filter(|l| !l.is_empty()) {
+				meta.push(format!("Language: {}", lang.to_ascii_uppercase()));
+			}
+			if let Some(rank) = self.rank.filter(|&r| r > 0) {
+				meta.push(format!("Rank: #{rank}"));
+			}
+			if let Some(rated_by) = self.rated_count.filter(|&c| c > 0) {
+				meta.push(format!("Rated by: {rated_by}"));
+			}
+			if let Some(followed_by) = self.follows_total.filter(|&f| f > 0) {
+				meta.push(format!("Followed by: {followed_by}"));
+			}
+			if let Some(links) = self.links.take() {
+				let tracker_names = [
+					("al", "AniList"),
+					("mal", "MyAnimeList"),
+					("mu", "MangaUpdates"),
+					("md", "MangaDex"),
+					("mb", "MangaBaka"),
+				];
+				let mut tracker_links = Vec::new();
+				for (key, label) in tracker_names {
+					if let Some(url) = links.get(key).and_then(|v| v.as_str()).filter(|u| u.starts_with("http")) {
+						tracker_links.push(format!("[{label}]({url})"));
+					}
+				}
+				if !tracker_links.is_empty() {
+					meta.push(format!("Trackers: {}", tracker_links.join(" · ")));
+				}
+			}
+			if !meta.is_empty() {
+				parts.push(meta.join("\n"));
+			}
+		}
+
 		let mut manga: Manga = self.into();
-		manga.description = description;
+		manga.description = (!parts.is_empty()).then(|| parts.join("\n\n"));
 		manga
 	}
 
@@ -199,14 +265,11 @@ impl From<ComixManga> for Manga {
 		Self {
 			key: value.hid,
 			title: value.title,
-			cover: match value.poster {
-				Some(poster) => match settings::image_quality().as_str() {
-					"medium" => Some(poster.medium),
-					"large" => Some(poster.large),
-					_ => Some(poster.medium),
-				},
-				None => None,
-			},
+			cover: value.poster.and_then(|poster| match settings::image_quality().as_str() {
+				"medium" => poster.medium.or(poster.large).or(poster.small),
+				"small" => poster.small.or(poster.medium).or(poster.large),
+				_ => poster.large.or(poster.medium).or(poster.small),
+			}),
 			artists: value
 				.artists
 				.map(|v| v.into_iter().map(|t| t.title).collect()),
@@ -219,6 +282,9 @@ impl From<ComixManga> for Manga {
 				let mut tags = Vec::new();
 				if let Some(genres) = value.genres {
 					tags.extend(genres.into_iter().map(|t| t.title));
+				}
+				if let Some(demographics) = value.demographics {
+					tags.extend(demographics.into_iter().map(|t| t.title));
 				}
 				if let Some(tags_vec) = value.tags {
 					tags.extend(tags_vec.into_iter().map(|t| t.title));
@@ -290,10 +356,11 @@ pub struct ComixChapterWithPages {
 	pub pages: ComixPages,
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, Default)]
 pub struct Poster {
-	pub medium: String,
-	pub large: String,
+	pub small: Option<String>,
+	pub medium: Option<String>,
+	pub large: Option<String>,
 }
 
 #[derive(Deserialize)]
@@ -317,8 +384,23 @@ pub struct ComixPages {
 }
 
 #[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct ComixPage {
 	pub url: String,
+	#[serde(default, alias = "scramble_seed")]
+	pub scramble_seed: Option<i64>,
+	#[serde(default, alias = "scramble_grid")]
+	pub scramble_grid: Option<String>,
+	#[serde(default, alias = "scramble_algo")]
+	pub scramble_algo: Option<String>,
+	#[serde(default, alias = "scramble_hash")]
+	pub scramble_hash: Option<String>,
+	#[serde(default, alias = "enc_seed")]
+	pub enc_seed: Option<i64>,
+	#[serde(default, alias = "enc_len")]
+	pub enc_len: Option<usize>,
+	#[serde(default, alias = "enc_algo")]
+	pub enc_algo: Option<String>,
 }
 
 // deserialize a bool from a json bool, number, or string

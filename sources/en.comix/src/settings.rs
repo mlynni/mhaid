@@ -7,6 +7,9 @@ use aidoku::{
 const HIDE_NSFW_KEY: &str = "hideNSFW";
 const THUMBNAIL_QUALITY_KEY: &str = "thumbnailQuality";
 const DEDUPED_CHAPTER_KEY: &str = "dedupedChapter";
+const SCANLATOR_BLACKLIST_KEY: &str = "scanlatorBlacklist";
+const SHOW_EXTRA_INFO_KEY: &str = "showExtraInfo";
+const ALT_NAMES_IN_DESC_KEY: &str = "altNamesInDesc";
 
 const HIDDEN_TYPES_KEY: &str = "hiddenTypes";
 const HIDDEN_GENRES_KEY: &str = "hiddenGenres";
@@ -24,6 +27,23 @@ pub fn image_quality() -> String {
 
 pub fn dedupchapter() -> bool {
 	defaults_get::<bool>(DEDUPED_CHAPTER_KEY).unwrap_or(false)
+}
+
+pub fn scanlator_blacklist() -> Vec<String> {
+	defaults_get::<String>(SCANLATOR_BLACKLIST_KEY)
+		.unwrap_or_default()
+		.split(',')
+		.map(|s| s.trim().to_ascii_lowercase())
+		.filter(|s| !s.is_empty())
+		.collect()
+}
+
+pub fn show_extra_info() -> bool {
+	defaults_get::<bool>(SHOW_EXTRA_INFO_KEY).unwrap_or(true)
+}
+
+pub fn alt_names_in_desc() -> bool {
+	defaults_get::<bool>(ALT_NAMES_IN_DESC_KEY).unwrap_or(false)
 }
 
 pub fn hidden_types() -> Vec<String> {

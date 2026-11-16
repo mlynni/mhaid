@@ -1,8 +1,9 @@
 #![no_std]
 use aidoku::{
 	Chapter, ContentRating, DeepLinkHandler, DeepLinkResult, FilterValue, ImageRequestProvider,
-	Manga, MangaPageResult, MangaStatus, Page, PageContext, Result, Source, Viewer,
-	alloc::{String, Vec, string::ToString},
+	Listing, ListingProvider, Manga, MangaPageResult, MangaStatus, Page, PageContext, Result,
+	Source, Viewer,
+	alloc::{String, Vec, string::ToString, vec},
 	imports::{html::Html, net::Request, std::send_partial_result},
 	prelude::*,
 };
@@ -106,6 +107,11 @@ impl Source for MangaFire {
 		if let Some(query) = query {
 			qs.push(("keyword".into(), query.into()));
 		}
+		if !qs.iter().any(|(k, _)| k.as_ref() == "content_rating[]") {
+			for rating in settings::get_content_ratings() {
+				qs.push(("content_rating[]".into(), rating.into()));
+			}
+		}
 		qs.push(("page".into(), page.to_string().into()));
 		qs.push(("limit".into(), "50".into()));
 
@@ -187,39 +193,87 @@ impl Source for MangaFire {
 		if needs_chapters {
 			let mut chapters = Vec::new();
 			let languages = settings::get_languages()?;
-			for lang in &languages {
-				let mut page = 1;
-				loop {
-					let response = api_request(
-						&format!("/titles/{}/chapters", manga.key),
-						&mut [
-							("language".into(), lang.into()),
-							("sort".into(), "number".into()),
-							("order".into(), "desc".into()),
-							("page".into(), page.to_string().into()),
-							("limit".into(), "200".into()),
-						],
-					)?
+
+			if settings::show_as_volumes() {
+				let volumes = api_request(&format!("/titles/{}/volumes", manga.key), &mut [])?
 					.header("Accept", "application/json")
 					.header("Referer", &format!("{BASE_URL}/"))
 					.send()?
-					.get_json::<ApiResponse<ApiChapter>>()?;
+					.get_json::<ApiResponse<ApiVolume>>()?
+					.items;
 
-					chapters.extend(
-						response
-							.items
-							.into_iter()
-							.map(|chapter| chapter.into_chapter(&manga.key, lang)),
-					);
-
-					if !response.meta.is_some_and(|meta| meta.has_next) {
-						break;
-					}
-					page += 1;
-				}
+				chapters.extend(
+					volumes
+						.into_iter()
+						.filter(|vol| languages.iter().any(|lang| lang == &vol.language))
+						.map(|vol| vol.into_chapter(&manga.key)),
+				);
 			}
-			if languages.len() > 1 {
-				chapters.sort_by_key(|c| core::cmp::Reverse(c.chapter_number.map(|n| n as i32)));
+
+			if chapters.is_empty() {
+				for lang in &languages {
+					let mut page = 1;
+					loop {
+						let response = api_request(
+							&format!("/titles/{}/chapters", manga.key),
+							&mut [
+								("language".into(), lang.into()),
+								("sort".into(), "number".into()),
+								("order".into(), "desc".into()),
+								("page".into(), page.to_string().into()),
+								("limit".into(), "200".into()),
+							],
+						)?
+						.header("Accept", "application/json")
+						.header("Referer", &format!("{BASE_URL}/"))
+						.send()?
+						.get_json::<ApiResponse<ApiChapter>>()?;
+
+						chapters.extend(
+							response
+								.items
+								.into_iter()
+								.map(|chapter| chapter.into_chapter(&manga.key, lang)),
+						);
+
+						if !response.meta.is_some_and(|meta| meta.has_next) {
+							break;
+						}
+						page += 1;
+					}
+				}
+
+				if settings::merge_chapters() {
+					let prefer_official = settings::prefer_official();
+					chapters.sort_by_key(|c| {
+						let is_official = c
+							.scanlators
+							.as_ref()
+							.is_some_and(|s| s.iter().any(|name| name.eq_ignore_ascii_case("official")));
+						if prefer_official { !is_official } else { is_official }
+					});
+					let mut seen: Vec<(Option<String>, Option<u32>)> = Vec::new();
+					chapters.retain(|c| {
+						let key = (c.language.clone(), c.chapter_number.map(f32::to_bits));
+						if seen.contains(&key) {
+							false
+						} else {
+							seen.push(key);
+							true
+						}
+					});
+					chapters.sort_by(|a, b| {
+						b.chapter_number
+							.unwrap_or(-1.0)
+							.total_cmp(&a.chapter_number.unwrap_or(-1.0))
+					});
+				} else if languages.len() > 1 {
+					chapters.sort_by(|a, b| {
+						b.chapter_number
+							.unwrap_or(-1.0)
+							.total_cmp(&a.chapter_number.unwrap_or(-1.0))
+					});
+				}
 			}
 
 			manga.chapters = Some(chapters);
@@ -229,12 +283,36 @@ impl Source for MangaFire {
 	}
 
 	fn get_page_list(&self, _manga: Manga, chapter: Chapter) -> Result<Vec<Page>> {
-		api_request(&format!("/chapters/{}", chapter.key), &mut [])?
+		let path = if let Some(vol_id) = chapter.key.strip_prefix("volume/") {
+			format!("/volumes/{vol_id}")
+		} else {
+			format!("/chapters/{}", chapter.key)
+		};
+		api_request(&path, &mut [])?
 			.header("Accept", "application/json")
 			.header("Referer", &format!("{BASE_URL}/"))
 			.send()?
 			.get_json::<ApiPagesResponse>()
 			.map(|response| response.data.pages.into_iter().map(Page::from).collect())
+	}
+}
+
+impl ListingProvider for MangaFire {
+	fn get_manga_list(&self, listing: Listing, page: i32) -> Result<MangaPageResult> {
+		let index = match listing.id.as_str() {
+			"popular" => 9,
+			"latest" => 1,
+			_ => bail!("Invalid listing"),
+		};
+		self.get_search_manga_list(
+			None,
+			page,
+			vec![FilterValue::Sort {
+				id: "Sort".into(),
+				index,
+				ascending: false,
+			}],
+		)
 	}
 }
 
@@ -268,4 +346,10 @@ impl DeepLinkHandler for MangaFire {
 	}
 }
 
-register_source!(MangaFire, Home, ImageRequestProvider, DeepLinkHandler);
+register_source!(
+	MangaFire,
+	Home,
+	ListingProvider,
+	ImageRequestProvider,
+	DeepLinkHandler
+);

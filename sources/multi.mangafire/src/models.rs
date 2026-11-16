@@ -104,6 +104,35 @@ impl ApiChapter {
 }
 
 #[derive(Deserialize)]
+pub struct ApiVolume {
+	pub id: i32,
+	pub number: i32,
+	pub name: Option<String>,
+	#[serde(rename = "chapterCount")]
+	pub chapter_count: i32,
+	pub language: String,
+}
+
+impl ApiVolume {
+	pub fn into_chapter(self, manga_key: &str) -> Chapter {
+		let title = match self.name.filter(|n| !n.is_empty()) {
+			Some(name) => format!("Vol. {} - {name}", self.number),
+			None => format!("Vol. {}", self.number),
+		};
+		Chapter {
+			key: format!("volume/{}", self.id),
+			title: Some(title),
+			volume_number: Some(self.number as f32),
+			chapter_number: Some(self.number as f32),
+			scanlators: Some(vec![format!("{} chapters", self.chapter_count)]),
+			url: Some(format!("{BASE_URL}/title/{manga_key}/volume/{}", self.id)),
+			language: Some(self.language),
+			..Default::default()
+		}
+	}
+}
+
+#[derive(Deserialize)]
 pub struct ApiPagesResponse {
 	pub data: ApiChapterPages,
 }
