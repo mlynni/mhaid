@@ -454,7 +454,7 @@ function buildSettingsJson(info) {
 	return items.length > 0 ? [{ type: "group", title: "Preferences", items }] : null;
 }
 
-function renderMihonDoc(info) {
+export function renderMihonDoc(info) {
 	const lines = [
 		`# Mihon Source Reference: ${info.name}`,
 		"",
