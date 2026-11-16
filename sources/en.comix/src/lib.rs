@@ -10,7 +10,7 @@ use aidoku::{
 	imports::{
 		canvas::ImageRef,
 		net::{Request, RequestError, Response},
-		std::{current_date, send_partial_result},
+		std::send_partial_result,
 	},
 	prelude::*,
 };
@@ -73,15 +73,14 @@ impl Source for Comix {
 						"{API_URL}/terms?type={id}&keyword={}&limit=1",
 						encode_uri_component(value)
 					);
-					let response = web_view.build_request(&url)?.send()?;
-					web_view
-						.decode_json_owned::<TermResponse>(&response)?
+					let term_res: TermResponse = web_view.send_and_decode(&url)?;
+					let term_id = term_res
 						.result
 						.items
 						.first()
 						.map(|t| t.id)
 						.ok_or_else(|| error!("No matching {id}s"))?;
-					qs.push(&format!("{id}s[]"), Some(&id.to_string()));
+					qs.push(&format!("{id}s[]"), Some(&term_id.to_string()));
 				}
 				FilterValue::Sort {
 					id,
@@ -179,9 +178,8 @@ impl Source for Comix {
 		}
 
 		let url = format!("{API_URL}/manga?{qs}");
-		let response = web_view.build_request(&url)?.send()?;
 		let mut result: MangaPageResult = web_view
-			.decode_json_owned::<SearchResponse>(&response)?
+			.send_and_decode::<SearchResponse>(&url)?
 			.into();
 		web_view.apply_covers_to_mangas(&mut result.entries);
 		Ok(result)
@@ -205,8 +203,7 @@ impl Source for Comix {
 									&includes[]=publisher",
 				manga.key
 			);
-			let response = web_view.build_request(&url)?.send()?;
-			let json: SingleMangaResponse = web_view.decode_json_owned(&response)?;
+			let json: SingleMangaResponse = web_view.send_and_decode(&url)?;
 
 			let mut detailed = json.result.into_detailed_manga();
 			web_view.apply_covers_to_mangas(core::slice::from_mut(&mut detailed));
@@ -232,8 +229,7 @@ impl Source for Comix {
 				params.push("order[number]", Some("desc"));
 
 				let url = format!("{API_URL}/manga/{}/chapters?{params}", manga.key);
-				let response = web_view.build_request(&url)?.send()?;
-				let res = web_view.decode_json_owned::<ChapterDetailsResponse>(&response)?;
+				let res: ChapterDetailsResponse = web_view.send_and_decode(&url)?;
 
 				let items = res.result.items.into_iter().filter(|ch| {
 					if blacklist.is_empty() {
@@ -284,8 +280,7 @@ impl Source for Comix {
 	fn get_page_list(&self, _manga: Manga, chapter: Chapter) -> Result<Vec<Page>> {
 		let mut web_view = self.web_view.borrow_mut();
 		let url = format!("{API_URL}/chapters/{}", chapter.key);
-		let response = web_view.build_request(&url)?.send()?;
-		let json: ChapterResponse = web_view.decode_json_owned(&response)?;
+		let json: ChapterResponse = web_view.send_and_decode(&url)?;
 
 		let Some(result) = json.result else {
 			bail!("Missing chapter")
@@ -413,36 +408,58 @@ impl Home for Comix {
 
 		let mut web_view = self.web_view.borrow_mut();
 
-		let responses: [core::result::Result<Response, RequestError>; 4] = Request::send_all([
-			// most recent popular
-			web_view.build_request(&format!(
-				"{API_URL}/manga/top?type=trending&days=1&limit=20{extra_qs}"
-			))?,
-			// most follows new comics
-			web_view.build_request(&format!(
-				"{API_URL}/manga/top?type=follows&days=1&limit=20{extra_qs}"
-			))?,
-			// latest updates (hot)
-			web_view.build_request(&format!(
-				"{API_URL}/manga?scope=hot&limit=30&order[chapter_updated_at]=desc&page=1{extra_qs}"
-			))?,
-			// recently added
-			web_view.build_request(&format!(
-				"{API_URL}/manga?order[created_at]=desc&limit=10&page=1{extra_qs}"
-			))?,
-		])
-		.try_into()
-		.expect("requests vec length should be 4");
+		let urls = [
+			format!("{API_URL}/manga/top?type=trending&days=1&limit=20{extra_qs}"),
+			format!("{API_URL}/manga/top?type=follows&days=1&limit=20{extra_qs}"),
+			format!("{API_URL}/manga?scope=hot&limit=30&order[chapter_updated_at]=desc&page=1{extra_qs}"),
+			format!("{API_URL}/manga?order[created_at]=desc&limit=10&page=1{extra_qs}"),
+		];
 
-		let [popular_res, follows_res, latest_res, recent_res] = responses;
+		let use_wv = settings::transport_mode() == "webview" || web_view.is_webview_transport();
+		let decoded: [Result<SearchResponse>; 4] = if use_wv {
+			[
+				web_view.send_and_decode(&urls[0]),
+				web_view.send_and_decode(&urls[1]),
+				web_view.send_and_decode(&urls[2]),
+				web_view.send_and_decode(&urls[3]),
+			]
+		} else {
+			let responses: [core::result::Result<Response, RequestError>; 4] = Request::send_all([
+				web_view.build_request(&urls[0])?,
+				web_view.build_request(&urls[1])?,
+				web_view.build_request(&urls[2])?,
+				web_view.build_request(&urls[3])?,
+			])
+			.try_into()
+			.expect("requests vec length should be 4");
+			let [r0, r1, r2, r3] = responses;
+			let resolve = |res: core::result::Result<Response, RequestError>,
+			               url: &str,
+			               wv: &mut ComixWebView|
+			 -> Result<SearchResponse> {
+				match res {
+					Ok(resp) => wv
+						.decode_json_owned::<SearchResponse>(&resp)
+						.or_else(|_| wv.send_and_decode(url)),
+					Err(_) => wv.send_and_decode(url),
+				}
+			};
+			[
+				resolve(r0, &urls[0], &mut web_view),
+				resolve(r1, &urls[1], &mut web_view),
+				resolve(r2, &urls[2], &mut web_view),
+				resolve(r3, &urls[3], &mut web_view),
+			]
+		};
+
+		let [popular_res, follows_res, latest_res, recent_res] = decoded;
 
 		for (response, title) in [
 			(popular_res, "Most Recent Popular"),
 			(follows_res, "Most Follows New Comics"),
 			(latest_res, "Latest Updates (Hot)"),
 		] {
-			let mut mangas: Vec<Manga> = web_view
-				.decode_json_owned::<SearchResponse>(&response?)?
+			let mut mangas: Vec<Manga> = response?
 				.result
 				.items
 				.into_iter()
@@ -474,8 +491,7 @@ impl Home for Comix {
 		}
 
 		{
-			let items: Vec<ComixManga> = web_view
-				.decode_json_owned::<SearchResponse>(&recent_res?)?
+			let items: Vec<ComixManga> = recent_res?
 				.result
 				.items
 				.into_iter()
@@ -551,9 +567,8 @@ impl ListingProvider for Comix {
 			let url = format!("{url}{extra_qs}");
 			let mut web_view = comix.web_view.borrow_mut();
 
-			let response = web_view.build_request(&url)?.send()?;
 			let mut result = web_view
-				.decode_json_owned::<SearchResponse>(&response)?
+				.send_and_decode::<SearchResponse>(&url)?
 				.result
 				.into_filtered(&hidden_types, &hidden_terms);
 			web_view.apply_covers_to_mangas(&mut result.entries);
@@ -645,20 +660,15 @@ const VERIFY_COOKIE_KEY: &str = "waf_pass";
 impl WebLoginHandler for Comix {
 	fn handle_web_login(&self, key: String, cookies: HashMap<String, String>) -> Result<bool> {
 		if key == VERIFY_KEY {
-			// This is verifying button not to be confused with actual login button.
-			// We need to intercept waf_pass cookie so that we can pass the checks.
-			// This will not log you in even if you do the login page afterward.
-			let verified = cookies.get(VERIFY_COOKIE_KEY).is_some_and(|pass| {
-				let Some((timestamp, _)) = pass.split_once('.') else {
-					return false;
-				};
-				let current_timestamp = current_date();
-				current_timestamp - timestamp.parse::<i64>().unwrap_or(0) < 30 * 60
-			});
-			if verified {
-				self.web_view.borrow_mut().reset();
+			if let Some(pass) = cookies.get(VERIFY_COOKIE_KEY) {
+				let pass = pass.trim();
+				if !pass.is_empty() {
+					settings::set_verify_cookie(pass);
+					self.web_view.borrow_mut().reset();
+					return Ok(true);
+				}
 			}
-			return Ok(verified);
+			return Ok(false);
 		}
 
 		Ok(false)

@@ -14,6 +14,8 @@ const ALT_NAMES_IN_DESC_KEY: &str = "altNamesInDesc";
 const HIDDEN_TYPES_KEY: &str = "hiddenTypes";
 const HIDDEN_GENRES_KEY: &str = "hiddenGenres";
 const HIDDEN_THEMES_KEY: &str = "hiddenThemes";
+const WAF_PASS_DIRECT_KEY: &str = "wafPass";
+const TRANSPORT_MODE_KEY: &str = "transportMode";
 
 pub const VERIFY_KEY: &str = "verify";
 
@@ -76,8 +78,26 @@ pub fn reset_filters() {
 	defaults_set(HIDDEN_THEMES_KEY, DefaultValue::Null);
 }
 
+pub fn set_verify_cookie(token: &str) {
+	let trimmed = token.trim();
+	if !trimmed.is_empty() {
+		defaults_set(WAF_PASS_DIRECT_KEY, DefaultValue::String(trimmed.into()));
+	}
+}
+
 pub fn get_verify_cookie() -> Option<String> {
+	if let Some(direct) = defaults_get::<String>(WAF_PASS_DIRECT_KEY) {
+		let trimmed = direct.trim();
+		if !trimmed.is_empty() {
+			return Some(trimmed.into());
+		}
+	}
 	defaults_get_map(VERIFY_KEY)?
 		.get(VERIFY_COOKIE_KEY)
-		.cloned()
+		.map(|s| s.trim().into())
+		.filter(|s: &String| !s.is_empty())
+}
+
+pub fn transport_mode() -> String {
+	defaults_get::<String>(TRANSPORT_MODE_KEY).unwrap_or_else(|| "auto".into())
 }

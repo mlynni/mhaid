@@ -255,6 +255,22 @@
 				]
 			}
 		],
-		"footer": "Please use this button to resolve captcha issues that can cause the source to fail to load. The result is only valid for 30 minutes, so you may have to repeat this process. This button is not for Account Login!"
+		"footer": "Open Verify Comix Captcha to solve Comix's challenge. The source automatically persists rotating waf_pass tokens, renews verification in the background when needed, and falls back to WebView transport if native requests are blocked. Not an account login."
+	},
+	{
+		"type": "group",
+		"title": "Connection",
+		"footer": "Automatic prefers Normal HTTP and switches to WebView when Comix or Cloudflare blocks requests.",
+		"items": [
+			{
+				"type": "select",
+				"key": "transportMode",
+				"title": "Requests",
+				"values": ["auto", "webview", "native"],
+				"titles": ["Automatic", "Web View", "Normal"],
+				"default": "auto",
+				"refreshes": ["content", "listings"]
+			}
+		]
 	}
 ]

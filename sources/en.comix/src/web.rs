@@ -1,4 +1,9 @@
-use crate::{BASE_URL, helpers::create_request_get, models::ErrorResponse};
+use crate::{
+	BASE_URL,
+	helpers::create_request_get,
+	models::ErrorResponse,
+	settings::{get_verify_cookie, set_verify_cookie, transport_mode},
+};
 use aidoku::{
 	HashMap, Manga, Result,
 	alloc::{string::String, string::ToString, vec::Vec},
@@ -20,6 +25,7 @@ const CF_CHALLENGE_HTML_ERROR_MESSAGE: &str = "Response returned CF challenge pa
 const CF_CHALLENGE_ERROR_MESSAGE: &str = "Response returned CF challenge page instead of JSON data. If problem persist, please clear the source cache and restart the application to resolve this issue.";
 
 const WAF_CHALLENGE_KEY: &str = "captcha_required";
+const THIRD_PARTY_APP_KEY: &str = "third_party_app";
 const WAF_CHALLENGE_HTML_ERROR_MESSAGE: &str = "Response returned WAF challenge page. Please open Comix Settings and Verify Captcha to resolve this issue.";
 const WAF_CHALLENGE_ERROR_MESSAGE: &str = "Response returned WAF challenge page instead of JSON data. Please open Comix Settings and Verify Captcha to resolve this issue.";
 
@@ -29,10 +35,20 @@ struct AxiosRequest {
 	params: Option<HashMap<String, Value>>,
 }
 
+#[derive(Deserialize)]
+struct WebViewFetchResult {
+	done: bool,
+	status: Option<u16>,
+	enc: Option<String>,
+	body: Option<String>,
+	error: Option<String>,
+}
+
 pub struct ComixWebView {
 	web_view: WebView,
 	is_initialized: bool,
 	cover_host_challenged: Option<bool>,
+	use_webview_transport: bool,
 }
 
 impl ComixWebView {
@@ -41,12 +57,52 @@ impl ComixWebView {
 			web_view: WebView::new(),
 			is_initialized: false,
 			cover_host_challenged: None,
+			use_webview_transport: false,
 		}
 	}
 
 	pub fn reset(&mut self) {
 		self.is_initialized = false;
 		self.cover_host_challenged = None;
+		self.use_webview_transport = false;
+	}
+
+	fn extract_waf_pass(raw: &str) -> Option<String> {
+		for segment in raw.split([',', ';']) {
+			let trimmed = segment.trim();
+			if let Some(value) = trimmed.strip_prefix("waf_pass=") {
+				let token = value.split(';').next().unwrap_or(value).trim();
+				if !token.is_empty() {
+					return Some(token.into());
+				}
+			}
+		}
+		None
+	}
+
+	fn capture_waf_pass_from_response(response: &Response) {
+		let header = response
+			.get_header("Set-Cookie")
+			.or_else(|| response.get_header("set-cookie"));
+		if let Some(raw) = header
+			&& let Some(token) = Self::extract_waf_pass(&raw)
+		{
+			set_verify_cookie(&token);
+		}
+	}
+
+	fn sync_waf_pass_from_webview_cookies(&mut self) -> Option<String> {
+		let token = self
+			.web_view
+			.eval("(() => { const m = document.cookie.match(/(?:^|;\\s*)waf_pass=([^;]+)/); return m ? decodeURIComponent(m[1]) : ''; })()")
+			.ok()?;
+		let trimmed = token.trim();
+		if !trimmed.is_empty() {
+			set_verify_cookie(trimmed);
+			Some(trimmed.into())
+		} else {
+			None
+		}
 	}
 
 	fn load_webview(&mut self) -> Result<()> {
@@ -265,14 +321,19 @@ impl ComixWebView {
 }
 
 impl ComixWebView {
-	pub fn build_request(&mut self, url: &str) -> Result<Request> {
+	pub fn is_webview_transport(&self) -> bool {
+		self.use_webview_transport
+	}
+
+	pub fn sign_url(&mut self, url: &str) -> Result<String> {
 		if !self.is_initialized {
 			self.load_webview()?
 		}
 
+		let url_json = serde_json::to_string(url)?;
 		let result = self.web_view.eval(&format!(
-			"(() => {{
-			const url = new URL('{url}');
+			r#"(() => {{
+			const url = new URL({url_json});
 			const result = {{}};
 
 			for (const [key, rawValue] of url.searchParams) {{
@@ -307,6 +368,15 @@ impl ComixWebView {
 				}}
 			}}
 
+			// Since 2026-10-16 Comix checks the signed `v` flag word on chapter endpoints.
+			const apiPath = url.pathname.replace(/^\/api\/v1/, '');
+			if (
+				result.v === undefined
+				&& (/\/(?:manga\/[^/?]+|groups\/\d+)\/chapters$/.test(apiPath) || /^\/chapters\/\d+$/.test(apiPath))
+			) {{
+				result.v = '0';
+			}}
+
 			const request = window['{INSTALLER_REQUEST_TOKEN}']({{
 				url: `${{url.origin}}${{url.pathname}}`,
 				method: 'GET',
@@ -314,7 +384,7 @@ impl ComixWebView {
 			}});
 
 			return JSON.stringify(request);
-		}})()"
+		}})()"#
 		))?;
 
 		let axios_request: AxiosRequest = serde_json::from_str(result.as_str())?;
@@ -374,43 +444,209 @@ impl ComixWebView {
 
 		if let Some(params) = axios_request.params {
 			let query = build_query(&params);
-			create_request_get(&format!("{}?{query}", axios_request.url))
+			Ok(format!("{}?{query}", axios_request.url))
 		} else {
-			create_request_get(&axios_request.url)
+			Ok(axios_request.url)
 		}
 	}
 
-	pub fn decode_json_owned<T>(&mut self, response: &Response) -> Result<T>
-	where
-		T: DeserializeOwned,
-	{
+	pub fn build_request(&mut self, url: &str) -> Result<Request> {
+		let signed = self.sign_url(url)?;
+		create_request_get(&signed)
+	}
+
+	fn is_challenged_status(status: u16, body: &str) -> bool {
+		(status == 403 || status == 429)
+			&& (body.contains(WAF_CHALLENGE_KEY)
+				|| body.contains(THIRD_PARTY_APP_KEY)
+				|| body.contains("Just a moment"))
+	}
+
+	pub fn try_background_renew(&mut self) -> bool {
+		if !self.is_initialized && self.load_webview().is_err() {
+			return false;
+		}
+		let before = get_verify_cookie();
+		let start_js = r#"(() => {
+			window.__cxRenew = 'waiting';
+			document.querySelectorAll('iframe[data-cx-renew]').forEach(f => f.remove());
+			const frame = document.createElement('iframe');
+			frame.setAttribute('data-cx-renew', '1');
+			let timer;
+			const finish = state => {
+				if (window.__cxRenew !== 'waiting') return;
+				window.__cxRenew = state;
+				clearTimeout(timer);
+				window.removeEventListener('message', receive);
+				frame.remove();
+			};
+			const receive = event => {
+				if (event.origin === location.origin && event.source === frame.contentWindow
+					&& event.data && event.data.type === 'waf-captcha-solved') finish('solved');
+			};
+			window.addEventListener('message', receive);
+			frame.src = '/@waf/challenge?return=%2F';
+			frame.style.cssText = 'position:fixed;left:-9999px;width:360px;height:480px;border:0;opacity:0';
+			frame.addEventListener('error', () => finish('failed'));
+			timer = setTimeout(() => finish('timeout'), 6000);
+			document.body.appendChild(frame);
+			return 'started';
+		})()"#;
+		if self.web_view.eval(start_js).is_err() {
+			return false;
+		}
+		for attempt in 0..6 {
+			if attempt > 0 {
+				sleep(1);
+			}
+			let state = self
+				.web_view
+				.eval("String(window.__cxRenew || '')")
+				.unwrap_or_default();
+			let now = self.sync_waf_pass_from_webview_cookies();
+			if state == "solved" || (now.is_some() && now != before) {
+				return true;
+			}
+			if state == "failed" || state == "timeout" {
+				break;
+			}
+		}
+		let _ = self
+			.web_view
+			.eval("document.querySelectorAll('iframe[data-cx-renew]').forEach(f => f.remove());");
+		false
+	}
+
+	pub fn fetch_via_webview(&mut self, signed_url: &str) -> Result<(u16, Option<String>, String)> {
+		if !self.is_initialized {
+			self.load_webview()?
+		}
+		let url_json = serde_json::to_string(signed_url)?;
+		let kick_js = format!(
+			r#"((u) => {{
+				window.__cxApiFetch = JSON.stringify({{ done: false }});
+				const c = new AbortController();
+				setTimeout(() => {{ try {{ c.abort(); }} catch (_) {{}} }}, 14000);
+				fetch(u, {{ credentials: 'include', cache: 'no-store', headers: {{ 'Accept': 'application/json' }}, signal: c.signal }})
+					.then(async r => {{
+						const body = await r.text();
+						const enc = r.headers.get('x-enc');
+						window.__cxApiFetch = JSON.stringify({{ done: true, status: r.status, enc: enc || null, body }});
+					}})
+					.catch(e => {{
+						window.__cxApiFetch = JSON.stringify({{ done: true, error: String((e && e.message) || e || 'fetch failed') }});
+					}});
+				return 'kicked';
+			}})({url_json})"#
+		);
+		self.web_view.eval(&kick_js)?;
+
+		for attempt in 0..15 {
+			if attempt > 0 {
+				sleep(1);
+			}
+			let raw = self.web_view.eval("String(window.__cxApiFetch || '')")?;
+			if let Ok(res) = serde_json::from_str::<WebViewFetchResult>(&raw)
+				&& res.done
+			{
+				let _ = self.sync_waf_pass_from_webview_cookies();
+				if let Some(err) = res.error {
+					bail!("WebView fetch failed: {err}");
+				}
+				return Ok((res.status.unwrap_or(500), res.enc, res.body.unwrap_or_default()));
+			}
+		}
+		bail!("WebView API fetch timed out")
+	}
+
+	pub fn send_and_decode<T: DeserializeOwned>(&mut self, url: &str) -> Result<T> {
+		let mode = transport_mode();
+		if mode == "webview" || (mode != "native" && self.use_webview_transport) {
+			let signed_url = self.sign_url(url)?;
+			let (status, enc, body) = self.fetch_via_webview(&signed_url)?;
+			if !Self::is_challenged_status(status, &body) {
+				return self.decode_payload(status, None, enc.as_deref(), &body);
+			}
+			if self.try_background_renew() {
+				let retry_url = self.sign_url(url)?;
+				let (status2, enc2, body2) = self.fetch_via_webview(&retry_url)?;
+				return self.decode_payload(status2, None, enc2.as_deref(), &body2);
+			}
+			return self.decode_payload(status, None, enc.as_deref(), &body);
+		}
+
+		let mut response = self.build_request(url)?.send()?;
+		Self::capture_waf_pass_from_response(&response);
+		let mut status = response.status_code();
+		let mut cf = response.get_header("cf-mitigated");
+		let mut enc = response.get_header("x-enc");
+		let mut body = response.get_string().unwrap_or_default();
+
+		let challenged = (status == 403 || status == 429)
+			&& (cf.as_deref() == Some("challenge") || Self::is_challenged_status(status, &body));
+
+		if challenged {
+			if self.try_background_renew() {
+				response = self.build_request(url)?.send()?;
+				Self::capture_waf_pass_from_response(&response);
+				status = response.status_code();
+				cf = response.get_header("cf-mitigated");
+				enc = response.get_header("x-enc");
+				body = response.get_string().unwrap_or_default();
+				if status < 400 {
+					return self.decode_payload(status, cf.as_deref(), enc.as_deref(), &body);
+				}
+			}
+			if mode != "native" {
+				let signed_url = self.sign_url(url)?;
+				if let Ok((wv_status, wv_enc, wv_body)) = self.fetch_via_webview(&signed_url)
+					&& wv_status < 400
+				{
+					self.use_webview_transport = true;
+					return self.decode_payload(wv_status, None, wv_enc.as_deref(), &wv_body);
+				}
+			}
+		}
+
+		self.decode_payload(status, cf.as_deref(), enc.as_deref(), &body)
+	}
+
+	pub fn decode_json_owned<T: DeserializeOwned>(&mut self, response: &Response) -> Result<T> {
+		Self::capture_waf_pass_from_response(response);
+		let status = response.status_code();
+		let cf = response.get_header("cf-mitigated");
+		let enc = response.get_header("x-enc");
+		let body = response.get_string().unwrap_or_default();
+		self.decode_payload(status, cf.as_deref(), enc.as_deref(), &body)
+	}
+
+	fn decode_payload<T: DeserializeOwned>(
+		&mut self,
+		status_code: u16,
+		cf_mitigated: Option<&str>,
+		enc_header: Option<&str>,
+		body: &str,
+	) -> Result<T> {
 		if !self.is_initialized {
 			self.load_webview()?;
 		}
 
-		let status_code = response.status_code();
-
-		if status_code == 403
-			&& response
-				.get_header("cf-mitigated")
-				.is_some_and(|value| value == "challenge")
-		{
+		if status_code == 403 && cf_mitigated == Some("challenge") {
 			bail!("{CF_CHALLENGE_ERROR_MESSAGE}")
 		} else if status_code >= 400 {
-			if response.status_code() == 403
-				&& serde_json::from_slice::<ErrorResponse>(&response.get_data()?)
-					.is_ok_and(|e| e.error == WAF_CHALLENGE_KEY)
+			if serde_json::from_str::<ErrorResponse>(body)
+				.is_ok_and(|e| e.error == WAF_CHALLENGE_KEY || e.error == THIRD_PARTY_APP_KEY)
 			{
 				bail!("{}", WAF_CHALLENGE_ERROR_MESSAGE)
 			} else {
-				bail!("Response Error: {}", response.status_code())
+				bail!("Response Error: {status_code}")
 			}
-		} else if let Some(enc) = response.get_header("x-enc") {
-			let encoded_response = serde_json::to_string(&response.get_string()?)?;
-			let enc = serde_json::to_string(&enc)?;
+		} else if let Some(enc) = enc_header {
+			let encoded_response = serde_json::to_string(body)?;
+			let enc = serde_json::to_string(enc)?;
 
 			let result = self.web_view.eval(&format!(
-				"(() => {{
+				r#"(() => {{
 					try {{
 						let decoded = window['{INSTALLER_RESPONSE_TOKEN}']({{
 							data: JSON.parse({encoded_response}),
@@ -423,7 +659,7 @@ impl ComixWebView {
 					}} catch(e) {{
 						return 'error: ' + e;
 					}}
-				}})()",
+				}})()"#,
 			))?;
 
 			if result.starts_with("error:") {
@@ -434,8 +670,7 @@ impl ComixWebView {
 
 			serde_json::from_str(&result).map_err(|e| error!("Invalid json: {}", e))
 		} else {
-			let json_str = response.get_string()?;
-			serde_json::from_str(&json_str).map_err(|e| error!("Invalid json: {}", e))
+			serde_json::from_str(body).map_err(|e| error!("Invalid json: {}", e))
 		}
 	}
 
