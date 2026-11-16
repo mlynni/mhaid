@@ -721,7 +721,7 @@ function updateExtensionsRegistry(id, info, mihonRelPath, status) {
 		? readJson(EXTENSIONS_FILE)
 		: {
 				name: "Mlyn Aidoku Sources",
-				repository: "mhaid",
+				repository: "mlyn-aidoku-sources",
 				mihonUpstream: "https://github.com/keiyoushi/extensions-source",
 				aidokuUpstream: "https://github.com/Aidoku-Community/sources",
 				sources: [],
