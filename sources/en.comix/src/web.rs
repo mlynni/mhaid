@@ -1,11 +1,12 @@
 use crate::{BASE_URL, helpers::create_request_get, models::ErrorResponse};
 use aidoku::{
-	HashMap, Result,
+	HashMap, Manga, Result,
 	alloc::{string::String, string::ToString, vec::Vec},
 	helpers::uri::QueryParameters,
 	imports::{
 		js::WebView,
 		net::{Request, Response},
+		std::sleep,
 	},
 	prelude::*,
 };
@@ -31,6 +32,7 @@ struct AxiosRequest {
 pub struct ComixWebView {
 	web_view: WebView,
 	is_initialized: bool,
+	cover_host_challenged: Option<bool>,
 }
 
 impl ComixWebView {
@@ -38,7 +40,13 @@ impl ComixWebView {
 		Self {
 			web_view: WebView::new(),
 			is_initialized: false,
+			cover_host_challenged: None,
 		}
+	}
+
+	pub fn reset(&mut self) {
+		self.is_initialized = false;
+		self.cover_host_challenged = None;
 	}
 
 	fn load_webview(&mut self) -> Result<()> {
@@ -430,4 +438,196 @@ impl ComixWebView {
 			serde_json::from_str(&json_str).map_err(|e| error!("Invalid json: {}", e))
 		}
 	}
+
+	pub fn is_cover_host_challenged(&mut self, sample_url: &str) -> bool {
+		if let Some(cached) = self.cover_host_challenged {
+			return cached;
+		}
+		let challenged = match create_request_get(sample_url) {
+			Ok(req) => match req
+				.header("Referer", &format!("{BASE_URL}/"))
+				.header("Range", "bytes=0-0")
+				.send()
+			{
+				Ok(resp) => resp.status_code() >= 400,
+				Err(_) => true,
+			},
+			Err(_) => true,
+		};
+		self.cover_host_challenged = Some(challenged);
+		challenged
+	}
+
+	pub fn resolve_covers_in_webview(&mut self, urls: &[String]) -> HashMap<String, String> {
+		let mut resolved = HashMap::new();
+		let mut unique_urls: Vec<String> = Vec::new();
+		for url in urls {
+			if url.starts_with("https://") && !unique_urls.contains(url) {
+				unique_urls.push(url.clone());
+			}
+		}
+		if unique_urls.is_empty() {
+			return resolved;
+		}
+		if !self.is_initialized && self.load_webview().is_err() {
+			return resolved;
+		}
+		let Ok(urls_json) = serde_json::to_string(&unique_urls) else {
+			return resolved;
+		};
+		let kick_js = format!(
+			"(function(urls){{\
+				window.__cxCovers = window.__cxCovers || {{}};\
+				var known = Object.keys(window.__cxCovers);\
+				if (known.length > 240) {{\
+					known.slice(0, known.length - 240).forEach(function(k){{ delete window.__cxCovers[k]; }});\
+				}}\
+				urls.forEach(function(u){{\
+					var prev = window.__cxCovers[u];\
+					if (prev && !prev.error) return;\
+					window.__cxCovers[u] = {{ done: false }};\
+					var c = new AbortController(), ctype = '';\
+					setTimeout(function(){{ try {{ c.abort(); }} catch (e) {{}} }}, 15000);\
+					fetch(u, {{ credentials: 'include', cache: 'no-store', signal: c.signal }})\
+						.then(function(r){{ return r.ok ? r : fetch(u, {{ credentials: 'omit', cache: 'no-store', signal: c.signal }}); }})\
+						.catch(function(){{ return fetch(u, {{ credentials: 'omit', cache: 'no-store', signal: c.signal }}); }})\
+						.then(function(r){{ if (!r.ok) throw new Error('status ' + r.status); ctype = r.headers.get('content-type') || ''; return r.arrayBuffer(); }})\
+						.then(function(ab){{\
+							var b = new Uint8Array(ab), s = '', CH = 0x8000;\
+							for (var i = 0; i < b.length; i += CH) {{ s += String.fromCharCode.apply(null, b.subarray(i, i + CH)); }}\
+							window.__cxCovers[u] = {{ done: true, id: u, b64: btoa(s), ct: ctype }};\
+						}})\
+						.catch(function(e){{ window.__cxCovers[u] = {{ done: true, id: u, error: String(e) }}; }});\
+				}});\
+				return 'kicked';\
+			}})({urls_json})"
+		);
+		if self.web_view.eval(&kick_js).is_err() {
+			return resolved;
+		}
+
+		let read_js = format!(
+			"JSON.stringify(({urls_json}).map(function(u){{\
+				var e = (window.__cxCovers || {{}})[u];\
+				if (!e || !e.done) return null;\
+				if (e.error) return ['', String(e.error)];\
+				if (e.id !== u) return null;\
+				var r = [e.b64 || '', e.ct || 'image/jpeg'];\
+				delete window.__cxCovers[u];\
+				return r;\
+			}}))"
+		);
+
+		for attempt in 0..8 {
+			if attempt > 0 {
+				sleep(1);
+			}
+			let Ok(raw) = self.web_view.eval(&read_js) else {
+				break;
+			};
+			let Ok(items) = serde_json::from_str::<Vec<Option<(String, String)>>>(&raw) else {
+				break;
+			};
+			let mut pending = false;
+			for (url, item) in unique_urls.iter().zip(items.into_iter()) {
+				if let Some((b64, ct)) = item {
+					if !b64.is_empty() {
+						let mime = ct.split(';').next().unwrap_or("image/jpeg").trim();
+						let mime = if mime.starts_with("image/") {
+							mime
+						} else {
+							"image/jpeg"
+						};
+						resolved.insert(url.clone(), format!("data:{mime};base64,{b64}"));
+					}
+				} else if !resolved.contains_key(url) {
+					pending = true;
+				}
+			}
+			if !pending {
+				break;
+			}
+		}
+
+		resolved
+	}
+
+	pub fn apply_covers_to_mangas(&mut self, mangas: &mut [Manga]) {
+		let Some(first_url) = mangas
+			.iter()
+			.filter_map(|m| m.cover.as_deref())
+			.find(|u| u.starts_with("https://"))
+			.map(ToString::to_string)
+		else {
+			return;
+		};
+
+		if !self.is_cover_host_challenged(&first_url) {
+			return;
+		}
+
+		let urls: Vec<String> = mangas
+			.iter()
+			.filter_map(|m| m.cover.as_ref())
+			.filter(|u| u.starts_with("https://"))
+			.cloned()
+			.collect();
+		let resolved = self.resolve_covers_in_webview(&urls);
+		for manga in mangas.iter_mut() {
+			if let Some(cover) = manga.cover.as_deref()
+				&& let Some(data_uri) = resolved.get(cover)
+			{
+				manga.cover = Some(data_uri.clone());
+			}
+		}
+	}
+
+	pub fn fetch_cover_bytes(&mut self, url: &str) -> Option<Vec<u8>> {
+		if !url.starts_with("http://") && !url.starts_with("https://") {
+			return None;
+		}
+		if let Ok(req) = create_request_get(url)
+			&& let Ok(resp) = req.header("Referer", &format!("{BASE_URL}/")).send()
+			&& resp.status_code() < 400
+			&& let Ok(bytes) = resp.get_data()
+			&& !bytes.is_empty()
+		{
+			return Some(bytes);
+		}
+
+		self.cover_host_challenged = Some(true);
+		let resolved = self.resolve_covers_in_webview(&[url.to_string()]);
+		let data_uri = resolved.get(url)?;
+		let (_, b64) = data_uri.split_once(";base64,")?;
+		decode_base64(b64)
+	}
+}
+
+pub fn decode_base64(input: &str) -> Option<Vec<u8>> {
+	let mut out = Vec::with_capacity(input.len() * 3 / 4);
+	let mut buf: u32 = 0;
+	let mut bits: u8 = 0;
+	for b in input.bytes() {
+		if b.is_ascii_whitespace() {
+			continue;
+		}
+		if b == b'=' {
+			break;
+		}
+		let val = match b {
+			b'A'..=b'Z' => b - b'A',
+			b'a'..=b'z' => b - b'a' + 26,
+			b'0'..=b'9' => b - b'0' + 52,
+			b'+' | b'-' => 62,
+			b'/' | b'_' => 63,
+			_ => return None,
+		};
+		buf = (buf << 6) | (val as u32);
+		bits += 6;
+		if bits >= 8 {
+			bits -= 8;
+			out.push(((buf >> bits) & 0xFF) as u8);
+		}
+	}
+	Some(out)
 }

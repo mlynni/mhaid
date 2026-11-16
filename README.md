@@ -1,4 +1,4 @@
-# MHAID — Aidoku-екстеншени з Mihon
+# Mlyns Personal Sources — Aidoku-екстеншени з Mihon
 
 Персональний репозиторій розширень (джерел) для **[Aidoku](https://aidoku.app)** (iOS / iPadOS, версія 0.7+, для Comix — 0.8.4+), портованих із розширень Mihon (`keiyoushi/extensions-source`) у формат Rust/WebAssembly (`aidoku-rs`).
 
@@ -7,7 +7,7 @@
 | Джерело | ID в Aidoku | Мови | Версія | Мін. версія Aidoku | Базовий URL |
 |---|---|---|---:|---:|---|
 | **Weeb Central** | `en.weebcentral` | `en` | v9 | `0.7.1` | https://weebcentral.com |
-| **Comix** | `en.comix` | `en` | v28 | `0.8.4` | https://comix.to |
+| **Comix** | `en.comix` | `en` | v29 | `0.8.4` | https://comix.to |
 | **MangaDex** | `multi.mangadex` | 54 мови (включно з `uk`, `en`) | v16 | `0.7.1` | https://mangadex.org |
 | **MangaFire** | `multi.mangafire` | `en`, `es`, `es-419`, `fr`, `ja`, `pt`, `pt-BR` | v9 | `0.7.1` | https://mangafire.to |
 

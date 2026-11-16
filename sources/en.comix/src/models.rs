@@ -126,6 +126,7 @@ pub struct ComixManga {
 	pub synopsis: Option<String>,
 	#[serde(default)]
 	pub r#type: String,
+	#[serde(alias = "cover", alias = "thumbnail", alias = "thumb")]
 	pub poster: Option<Poster>,
 	#[serde(default)]
 	pub status: String,
@@ -265,11 +266,14 @@ impl From<ComixManga> for Manga {
 		Self {
 			key: value.hid,
 			title: value.title,
-			cover: value.poster.and_then(|poster| match settings::image_quality().as_str() {
-				"medium" => poster.medium.or(poster.large).or(poster.small),
-				"small" => poster.small.or(poster.medium).or(poster.large),
-				_ => poster.large.or(poster.medium).or(poster.small),
-			}),
+			cover: value
+				.poster
+				.and_then(|poster| match settings::image_quality().as_str() {
+					"medium" => poster.medium.or(poster.large).or(poster.small),
+					"small" => poster.small.or(poster.medium).or(poster.large),
+					_ => poster.large.or(poster.medium).or(poster.small),
+				})
+				.and_then(normalize_cover_url),
 			artists: value
 				.artists
 				.map(|v| v.into_iter().map(|t| t.title).collect()),
@@ -356,11 +360,113 @@ pub struct ComixChapterWithPages {
 	pub pages: ComixPages,
 }
 
-#[derive(Deserialize, Default)]
+pub fn normalize_cover_url(url: String) -> Option<String> {
+	let trimmed = url.trim();
+	if trimmed.is_empty() {
+		return None;
+	}
+	if trimmed.starts_with("http://")
+		|| trimmed.starts_with("https://")
+		|| trimmed.starts_with("data:")
+	{
+		Some(trimmed.to_string())
+	} else if trimmed.starts_with("//") {
+		Some(format!("https:{trimmed}"))
+	} else if trimmed.starts_with('/') {
+		Some(format!("{BASE_URL}{trimmed}"))
+	} else {
+		Some(format!("{BASE_URL}/{trimmed}"))
+	}
+}
+
+#[derive(Default)]
 pub struct Poster {
 	pub small: Option<String>,
 	pub medium: Option<String>,
 	pub large: Option<String>,
+}
+
+impl<'de> Deserialize<'de> for Poster {
+	fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+	where
+		D: Deserializer<'de>,
+	{
+		struct PosterVisitor;
+
+		impl<'de> de::Visitor<'de> for PosterVisitor {
+			type Value = Poster;
+
+			fn expecting(&self, formatter: &mut core::fmt::Formatter) -> core::fmt::Result {
+				formatter.write_str("a poster URL string or object")
+			}
+
+			fn visit_str<E: de::Error>(self, v: &str) -> Result<Poster, E> {
+				let s = v.trim();
+				Ok(Poster {
+					large: (!s.is_empty()).then(|| s.to_string()),
+					..Default::default()
+				})
+			}
+
+			fn visit_string<E: de::Error>(self, v: String) -> Result<Poster, E> {
+				let s = v.trim();
+				Ok(Poster {
+					large: (!s.is_empty()).then(|| s.to_string()),
+					..Default::default()
+				})
+			}
+
+			fn visit_map<A>(self, mut map: A) -> Result<Poster, A::Error>
+			where
+				A: de::MapAccess<'de>,
+			{
+				let mut small: Option<String> = None;
+				let mut medium: Option<String> = None;
+				let mut large: Option<String> = None;
+				let mut fallback_url: Option<String> = None;
+
+				while let Some(key) = map.next_key::<String>()? {
+					match key.as_str() {
+						"small" => {
+							small = map
+								.next_value::<Option<String>>()?
+								.and_then(|s| (!s.trim().is_empty()).then_some(s));
+						}
+						"medium" => {
+							medium = map
+								.next_value::<Option<String>>()?
+								.and_then(|s| (!s.trim().is_empty()).then_some(s));
+						}
+						"large" => {
+							large = map
+								.next_value::<Option<String>>()?
+								.and_then(|s| (!s.trim().is_empty()).then_some(s));
+						}
+						"url" | "thumb" => {
+							fallback_url = map
+								.next_value::<Option<String>>()?
+								.and_then(|s| (!s.trim().is_empty()).then_some(s));
+						}
+						_ => {
+							let _ = map.next_value::<de::IgnoredAny>()?;
+						}
+					}
+				}
+
+				if large.is_none() {
+					large = fallback_url;
+				}
+
+				Ok(Poster {
+					small,
+					medium,
+					large,
+				})
+			}
+		}
+
+		deserializer.deserialize_any(PosterVisitor)
+	}
 }
 
 #[derive(Deserialize)]

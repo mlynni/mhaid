@@ -1,5 +1,5 @@
 {
-	"name": "MHAID Sources",
+	"name": "Mlyns Personal Sources",
 	"repository": "mhaid",
 	"mihonUpstream": "https://github.com/keiyoushi/extensions-source",
 	"aidokuUpstream": "https://github.com/Aidoku-Community/sources",
@@ -23,13 +23,13 @@
 			"name": "Comix",
 			"mihonPath": "src/en/comix",
 			"aidokuPath": "sources/en.comix",
-			"version": 28,
+			"version": 29,
 			"languages": ["en"],
 			"contentRating": 1,
 			"baseURL": "https://comix.to",
 			"minAppVersion": "0.8.4",
-			"packageFile": "en.comix-v28.aix",
-			"iconFile": "en.comix-v28.png",
+			"packageFile": "en.comix-v29.aix",
+			"iconFile": "en.comix-v29.png",
 			"status": "ready"
 		},
 		{

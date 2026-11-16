@@ -61,7 +61,7 @@ jobs:
       - name: Build source list
         run: |
           rm -f public/sources/*.aix public/icons/*.png
-          aidoku build sources/*/package.aix --name "MHAID Sources"
+          aidoku build sources/*/package.aix --name "Mlyns Personal Sources"
           touch public/.nojekyll
 
       - name: Verify source list

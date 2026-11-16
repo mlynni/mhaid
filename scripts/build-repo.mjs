@@ -137,8 +137,8 @@ function findLatestAixForId(id) {
 function buildIndex(baseUrl = "") {
 	const registry = fs.existsSync(EXTENSIONS_FILE)
 		? readJson(EXTENSIONS_FILE)
-		: { name: "MHAID Sources", sources: [] };
-	const repoName = registry.name || "MHAID Sources";
+		: { name: "Mlyns Personal Sources", sources: [] };
+	const repoName = registry.name || "Mlyns Personal Sources";
 
 	const pubSourcesDir = path.join(PUBLIC_DIR, "sources");
 	const pubIconsDir = path.join(PUBLIC_DIR, "icons");

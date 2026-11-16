@@ -1,9 +1,10 @@
 #![no_std]
 use aidoku::{
-	Chapter, DeepLinkHandler, DeepLinkResult, FilterValue, HashMap, Home, HomeComponent,
-	HomeLayout, HomePartialResult, ImageRequestProvider, ImageResponse, Link, LinkValue, Listing,
-	ListingProvider, Manga, MangaPageResult, MangaWithChapter, NotificationHandler, Page,
-	PageContent, PageContext, PageImageProcessor, Result, Source, WebLoginHandler,
+	Chapter, CoverImageProcessor, DeepLinkHandler, DeepLinkResult, FilterValue, HashMap, Home,
+	HomeComponent, HomeLayout, HomePartialResult, ImageRequestProvider, ImageResponse, Link,
+	LinkValue, Listing, ListingProvider, Manga, MangaPageResult, MangaWithChapter,
+	NotificationHandler, Page, PageContent, PageContext, PageImageProcessor, Result, Source,
+	WebLoginHandler,
 	alloc::{String, Vec, string::ToString, vec},
 	helpers::uri::{QueryParameters, encode_uri_component},
 	imports::{
@@ -179,9 +180,11 @@ impl Source for Comix {
 
 		let url = format!("{API_URL}/manga?{qs}");
 		let response = web_view.build_request(&url)?.send()?;
-		web_view
-			.decode_json_owned::<SearchResponse>(&response)
-			.map(Into::into)
+		let mut result: MangaPageResult = web_view
+			.decode_json_owned::<SearchResponse>(&response)?
+			.into();
+		web_view.apply_covers_to_mangas(&mut result.entries);
+		Ok(result)
 	}
 
 	fn get_manga_update(
@@ -205,7 +208,9 @@ impl Source for Comix {
 			let response = web_view.build_request(&url)?.send()?;
 			let json: SingleMangaResponse = web_view.decode_json_owned(&response)?;
 
-			manga.copy_from(json.result.into_detailed_manga());
+			let mut detailed = json.result.into_detailed_manga();
+			web_view.apply_covers_to_mangas(core::slice::from_mut(&mut detailed));
+			manga.copy_from(detailed);
 
 			if needs_chapters {
 				send_partial_result(&manga);
@@ -330,8 +335,29 @@ impl Source for Comix {
 }
 
 impl ImageRequestProvider for Comix {
-	fn get_image_request(&self, url: String, _context: Option<PageContext>) -> Result<Request> {
-		Ok(Request::get(url)?)
+	fn get_image_request(&self, url: String, context: Option<PageContext>) -> Result<Request> {
+		if url.starts_with("data:") {
+			return Ok(Request::get(url)?);
+		}
+		if context.is_none() || url.contains("://comix.") || url.contains(".comix.") {
+			Ok(helpers::create_request_get(&url)?.header("Referer", &format!("{BASE_URL}/")))
+		} else {
+			Ok(Request::get(url)?)
+		}
+	}
+}
+
+impl CoverImageProcessor for Comix {
+	fn process_cover_image(&self, response: ImageResponse) -> Result<ImageRef> {
+		if response.code < 400 && response.image.width() > 0.0 {
+			return Ok(response.image);
+		}
+		if let Some(url) = response.request.url.as_deref()
+			&& let Some(bytes) = self.web_view.borrow_mut().fetch_cover_bytes(url)
+		{
+			return Ok(ImageRef::new(&bytes));
+		}
+		Ok(response.image)
 	}
 }
 
@@ -415,20 +441,22 @@ impl Home for Comix {
 			(follows_res, "Most Follows New Comics"),
 			(latest_res, "Latest Updates (Hot)"),
 		] {
-			let entries = web_view
+			let mut mangas: Vec<Manga> = web_view
 				.decode_json_owned::<SearchResponse>(&response?)?
 				.result
 				.items
 				.into_iter()
 				.filter(|m| !m.is_hidden(&hidden_types, &hidden_terms))
-				.map(|m| {
-					let manga = Manga::from(m);
-					Link {
-						title: manga.title.clone(),
-						subtitle: None,
-						image_url: manga.cover.clone(),
-						value: Some(LinkValue::Manga(manga)),
-					}
+				.map(Manga::from)
+				.collect();
+			web_view.apply_covers_to_mangas(&mut mangas);
+			let entries = mangas
+				.into_iter()
+				.map(|manga| Link {
+					title: manga.title.clone(),
+					subtitle: None,
+					image_url: manga.cover.clone(),
+					value: Some(LinkValue::Manga(manga)),
 				})
 				.collect();
 			send_partial_result(&HomePartialResult::Component(HomeComponent {
@@ -446,22 +474,26 @@ impl Home for Comix {
 		}
 
 		{
-			let entries = web_view
+			let items: Vec<ComixManga> = web_view
 				.decode_json_owned::<SearchResponse>(&recent_res?)?
 				.result
 				.items
 				.into_iter()
 				.filter(|m| !m.is_hidden(&hidden_types, &hidden_terms))
-				.map(|m| {
-					let chapter_number = m.latest_chapter;
-					let manga = Manga::from(m);
-					MangaWithChapter {
-						manga,
-						chapter: Chapter {
-							chapter_number,
-							..Default::default()
-						},
-					}
+				.collect();
+			let chapter_numbers: Vec<Option<f32>> =
+				items.iter().map(|m| m.latest_chapter).collect();
+			let mut mangas: Vec<Manga> = items.into_iter().map(Manga::from).collect();
+			web_view.apply_covers_to_mangas(&mut mangas);
+			let entries = mangas
+				.into_iter()
+				.zip(chapter_numbers)
+				.map(|(manga, chapter_number)| MangaWithChapter {
+					manga,
+					chapter: Chapter {
+						chapter_number,
+						..Default::default()
+					},
 				})
 				.collect();
 			let title = "Recently Added";
@@ -520,9 +552,12 @@ impl ListingProvider for Comix {
 			let mut web_view = comix.web_view.borrow_mut();
 
 			let response = web_view.build_request(&url)?.send()?;
-			web_view
-				.decode_json_owned::<SearchResponse>(&response)
-				.map(|r| r.result.into_filtered(&hidden_types, &hidden_terms))
+			let mut result = web_view
+				.decode_json_owned::<SearchResponse>(&response)?
+				.result
+				.into_filtered(&hidden_types, &hidden_terms);
+			web_view.apply_covers_to_mangas(&mut result.entries);
+			Ok(result)
 		}
 
 		match listing.id.as_str() {
@@ -558,6 +593,8 @@ impl NotificationHandler for Comix {
 	fn handle_notification(&self, notification: String) {
 		if notification == "resetFilters" {
 			settings::reset_filters();
+		} else if notification == "verify" {
+			self.web_view.borrow_mut().reset();
 		}
 	}
 }
@@ -611,13 +648,17 @@ impl WebLoginHandler for Comix {
 			// This is verifying button not to be confused with actual login button.
 			// We need to intercept waf_pass cookie so that we can pass the checks.
 			// This will not log you in even if you do the login page afterward.
-			return Ok(cookies.get(VERIFY_COOKIE_KEY).is_some_and(|pass| {
+			let verified = cookies.get(VERIFY_COOKIE_KEY).is_some_and(|pass| {
 				let Some((timestamp, _)) = pass.split_once('.') else {
 					return false;
 				};
 				let current_timestamp = current_date();
 				current_timestamp - timestamp.parse::<i64>().unwrap_or(0) < 30 * 60
-			}));
+			});
+			if verified {
+				self.web_view.borrow_mut().reset();
+			}
+			return Ok(verified);
 		}
 
 		Ok(false)
@@ -629,6 +670,7 @@ register_source!(
 	Home,
 	ListingProvider,
 	ImageRequestProvider,
+	CoverImageProcessor,
 	PageImageProcessor,
 	NotificationHandler,
 	DeepLinkHandler,
