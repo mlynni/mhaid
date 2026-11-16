@@ -68,7 +68,7 @@ All site names, logos, and upstream extension code remain the property of their 
 | <img src="assets/icons/en.comix.png" width="22" align="top"> **Comix** | `en.comix` | `v29` | English | `0.8.4` | [comix.to](https://comix.to) · Large library + WebView cover resolution after Verify Captcha |
 | <img src="assets/icons/multi.kagane.png" width="22" align="top"> **Kagane** | `multi.kagane` | `v26` | 15 languages | `0.7.1` | [kagane.moe](https://kagane.moe) · Mostly manhwa with scanlation source badges |
 | <img src="assets/icons/multi.mangaplus.png" width="22" align="top"> **MANGA Plus** | `multi.mangaplus` | `v6` | 9 languages | `0.7.2` | [mangaplus.shueisha.co.jp](https://mangaplus.shueisha.co.jp) · Official Shueisha simulpubs |
-| <img src="assets/icons/multi.mangaball.png" width="22" align="top"> **Mangaball** | `multi.mangaball` | `v13` | 34 languages (incl. `uk`) | `0.7.1` | [mangaball.com](https://mangaball.com) · Broad language support + multi-CDN cover fallback |
+| <img src="assets/icons/multi.mangaball.png" width="22" align="top"> **Mangaball** | `multi.mangaball` | `v14` | 34 languages (incl. `uk`) | `0.7.1` | [mangaball.com](https://mangaball.com) · Broad language support + multi-CDN cover fallback |
 | <img src="assets/icons/en.mangabat.png" width="22" align="top"> **MangaBat** | `en.mangabat` | `v9` | English | `0.7.1` | [mangabats.com](https://www.mangabats.com) · Shared `mangabox` template |
 | <img src="assets/icons/multi.mangadex.png" width="22" align="top"> **MangaDex** | `multi.mangadex` | `v16` | 54 languages (incl. `uk`, `en`) | `0.7.1` | [mangadex.org](https://mangadex.org) · Public API with broad language & group filters |
 | <img src="assets/icons/en.mangadot.png" width="22" align="top"> **MangaDotNet** | `en.mangadot` | `v20` | 43 languages (incl. `uk`) | `0.8.3` | [mangadot.net](https://mangadot.net) · Consistent single-group chapter deduplication |
@@ -106,12 +106,12 @@ All site names, logos, and upstream extension code remain the property of their 
 
 <h3><img src="assets/icons/multi.mangaball.png" width="24" align="top">&nbsp; Mangaball</h3>
 
-<sub><code>multi.mangaball</code> &nbsp;·&nbsp; <a href="https://mangaball.com">mangaball.com</a> &nbsp;·&nbsp; <strong>updated in v13</strong></sub>
+<sub><code>multi.mangaball</code> &nbsp;·&nbsp; <a href="https://mangaball.com">mangaball.com</a> &nbsp;·&nbsp; <strong>updated in v14</strong></sub>
 
-- **Reliable Poster Loading (`v13`).**
+- **Reliable Poster Loading (`v14`).**
   - Filters out defunct external hosts (`hentaicdn.org` / `hencover`) so titles fall back to valid mirrors.
-  - Normalizes relative `/media/...`, `/covers/...`, Windows `\`, `background`, and relative MangaDex cover paths.
-  - Adjusts `ImageRequestProvider` `Referer` headers per CDN (`mangadex.org`, `mangaupdates.com`, `mangaball.com`) and implements `CoverImageProcessor` fallback retries when an image host returns a 403/blank response.
+  - Uses fast MangaDex `.512.jpg` thumbnails ahead of oversized multi-megabyte WebP covers and removes cross-site `Referer` headers where CDNs block them (`uploads.mangadex.org`, `mangaupdates.com`).
+  - Implements `CoverImageProcessor` multi-CDN fallback retries so titles seamlessly fall back across `cover.path`, `cdn_mangadex`, `file`, `cdn_mangaupdates`, and `cdn_bato` if a primary host returns an error.
 
 <h3><img src="assets/icons/en.mangadot.png" width="24" align="top">&nbsp; MangaDotNet & Mangadotnet</h3>
 

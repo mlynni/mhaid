@@ -216,7 +216,7 @@
 			"name": "Mangaball",
 			"mihonPath": "src/all/mangaball",
 			"aidokuPath": "sources/multi.mangaball",
-			"version": 13,
+			"version": 14,
 			"languages": [
 				"en",
 				"ar",
@@ -256,8 +256,8 @@
 			"contentRating": 1,
 			"baseURL": "https://mangaball.com",
 			"minAppVersion": "0.7.1",
-			"packageFile": "multi.mangaball-v13.aix",
-			"iconFile": "multi.mangaball-v13.png",
+			"packageFile": "multi.mangaball-v14.aix",
+			"iconFile": "multi.mangaball-v14.png",
 			"status": "ready",
 			"lastMihonCommit": "53ca84819ae31a9651178b669bc24861f480c2c3",
 			"lastAidokuCommit": "4a4e1c90069a98b6b675f78fb9b1680dbc5202ec"

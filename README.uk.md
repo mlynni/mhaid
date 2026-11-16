@@ -68,7 +68,7 @@
 | <img src="assets/icons/en.comix.png" width="22" align="top"> **Comix** | `en.comix` | `v29` | English | `0.8.4` | [comix.to](https://comix.to) · Велика бібліотека + WebView-резолв постерів після Verify Captcha |
 | <img src="assets/icons/multi.kagane.png" width="22" align="top"> **Kagane** | `multi.kagane` | `v26` | 15 мов | `0.7.1` | [kagane.moe](https://kagane.moe) · Переважно манхва з бейджами сканлейт-груп |
 | <img src="assets/icons/multi.mangaplus.png" width="22" align="top"> **MANGA Plus** | `multi.mangaplus` | `v6` | 9 мов | `0.7.2` | [mangaplus.shueisha.co.jp](https://mangaplus.shueisha.co.jp) · Офіційні релізи Shueisha |
-| <img src="assets/icons/multi.mangaball.png" width="22" align="top"> **Mangaball** | `multi.mangaball` | `v13` | 34 мови (включно з `uk`) | `0.7.1` | [mangaball.com](https://mangaball.com) · Багатомовне покриття + мульти-CDN фолбек постерів |
+| <img src="assets/icons/multi.mangaball.png" width="22" align="top"> **Mangaball** | `multi.mangaball` | `v14` | 34 мови (включно з `uk`) | `0.7.1` | [mangaball.com](https://mangaball.com) · Багатомовне покриття + мульти-CDN фолбек постерів |
 | <img src="assets/icons/en.mangabat.png" width="22" align="top"> **MangaBat** | `en.mangabat` | `v9` | English | `0.7.1` | [mangabats.com](https://www.mangabats.com) · Шаблон `mangabox` |
 | <img src="assets/icons/multi.mangadex.png" width="22" align="top"> **MangaDex** | `multi.mangadex` | `v16` | 54 мови (включно з `uk`, `en`) | `0.7.1` | [mangadex.org](https://mangadex.org) · Публічне API, підтримка української |
 | <img src="assets/icons/en.mangadot.png" width="22" align="top"> **MangaDotNet** | `en.mangadot` | `v20` | 43 мови (включно з `uk`) | `0.8.3` | [mangadot.net](https://mangadot.net) · Групування перекладу під одну команду |
@@ -106,12 +106,12 @@
 
 <h3><img src="assets/icons/multi.mangaball.png" width="24" align="top">&nbsp; Mangaball</h3>
 
-<sub><code>multi.mangaball</code> &nbsp;·&nbsp; <a href="https://mangaball.com">mangaball.com</a> &nbsp;·&nbsp; <strong>оновлено у v13</strong></sub>
+<sub><code>multi.mangaball</code> &nbsp;·&nbsp; <a href="https://mangaball.com">mangaball.com</a> &nbsp;·&nbsp; <strong>оновлено у v14</strong></sub>
 
-- **Надійне завантаження постерів (`v13`).**
+- **Надійне завантаження постерів (`v14`).**
   - Відфільтровані мертві зовнішні дзеркала (`hentaicdn.org` / `hencover`).
-  - Нормалізовані відносні шляхи `/media/...`, `/covers/...`, `background`, Windows-слеші та відносні MangaDex-обкладинки.
-  - Виправлено `Referer`-заголовки для зовнішніх CDN (`mangadex.org`, `mangaupdates.com`) і додано резервне перезавантаження в `CoverImageProcessor`.
+  - Використовуються швидкі MangaDex `.512.jpg` мініатюри замість надто великих (3–11 МБ) WebP-обкладинок, а також прибрано зайвий `Referer` для зовнішніх CDN (`uploads.mangadex.org`, `mangaupdates.com`).
+  - Реалізовано мульти-CDN фолбек у `CoverImageProcessor` (перемикання між `cover.path`, `cdn_mangadex`, `file`, `cdn_mangaupdates` і `cdn_bato`), якщо основний сервер повертає помилку.
 
 <h3><img src="assets/icons/en.mangadot.png" width="24" align="top">&nbsp; MangaDotNet та Mangadotnet</h3>
 

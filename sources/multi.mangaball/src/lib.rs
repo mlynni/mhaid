@@ -10,22 +10,23 @@ use aidoku::{
 	ImageResponse, Listing, ListingProvider, Manga, MangaPageResult, Page, PageContent, PageContext,
 	Result, Source,
 	alloc::{String, Vec, vec},
-	imports::{
-		canvas::ImageRef,
-		net::Request,
-		std::send_partial_result,
-	},
+	imports::{canvas::ImageRef, net::Request, std::send_partial_result},
 	prelude::*,
 };
 use api::{API_URL, BASE_URL, SORTS, SearchParams, get, parse, site_headers};
+use core::cell::RefCell;
 use helpers::{Link, parse_link, site_languages};
 use models::{ApiResponse, ChapterDetail, ChapterItem, Title, chapter_list};
 
-struct MangaBall;
+struct MangaBall {
+	cover_fallbacks: RefCell<Vec<(String, String)>>,
+}
 
 impl Source for MangaBall {
 	fn new() -> Self {
-		Self
+		Self {
+			cover_fallbacks: RefCell::new(Vec::new()),
+		}
 	}
 
 	fn get_search_manga_list(
@@ -143,20 +144,38 @@ impl ListingProvider for MangaBall {
 	}
 }
 
+fn build_image_request(url: &str, is_page: bool) -> Result<Request> {
+	let req = Request::get(url)?.header(
+		"Accept",
+		"image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8",
+	);
+	if url.contains("mangaball.") || url.contains("poke-black-and-white.net") {
+		Ok(req.header("Referer", &format!("{BASE_URL}/")))
+	} else if url.contains("comix.to") || url.contains("comix.ws") {
+		Ok(req.header("Referer", "https://comix.to/"))
+	} else if is_page {
+		Ok(req.header("Referer", &format!("{BASE_URL}/")))
+	} else {
+		Ok(req)
+	}
+}
+
 impl ImageRequestProvider for MangaBall {
-	// Avoid sending Mangaball's Referer to external cover CDNs that hotlink-block foreign referrers.
-	fn get_image_request(&self, url: String, _context: Option<PageContext>) -> Result<Request> {
-		let req = Request::get(&url)?.header(
-			"Accept",
-			"image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8",
-		);
-		if url.contains("mangadex.org") {
-			Ok(req.header("Referer", "https://mangadex.org/"))
-		} else if url.contains("mangaupdates.com") {
-			Ok(req)
-		} else {
-			Ok(req.header("Referer", &format!("{BASE_URL}/")))
+	// Avoid sending Referer headers to external cover CDNs (e.g. uploads.mangadex.org) that reject them.
+	fn get_image_request(&self, url: String, context: Option<PageContext>) -> Result<Request> {
+		if context.is_none()
+			&& let Some((primary, fallback)) = url.split_once('#')
+		{
+			let mut fallbacks = self.cover_fallbacks.borrow_mut();
+			if !fallbacks.iter().any(|(p, _)| p == primary) {
+				if fallbacks.len() >= 64 {
+					fallbacks.remove(0);
+				}
+				fallbacks.push((String::from(primary), String::from(fallback)));
+			}
+			return build_image_request(primary, false);
 		}
+		build_image_request(&url, context.is_some())
 	}
 }
 
@@ -165,8 +184,17 @@ impl CoverImageProcessor for MangaBall {
 		if response.code < 400 && response.image.width() > 0.0 {
 			return Ok(response.image);
 		}
-		if let Some(url) = response.request.url.as_deref() {
-			if let Ok(req) = Request::get(url)
+		if let Some(raw_url) = response.request.url.as_deref() {
+			let primary = raw_url.split('#').next().unwrap_or(raw_url);
+			let fallback = raw_url.split_once('#').map(|(_, fb)| String::from(fb)).or_else(|| {
+				self.cover_fallbacks
+					.borrow()
+					.iter()
+					.find(|(p, _)| p == primary)
+					.map(|(_, fb)| fb.clone())
+			});
+			if let Some(fallback_url) = fallback
+				&& let Ok(req) = build_image_request(&fallback_url, false)
 				&& let Ok(resp) = req.send()
 				&& resp.status_code() < 400
 				&& let Ok(bytes) = resp.get_data()
@@ -174,7 +202,8 @@ impl CoverImageProcessor for MangaBall {
 			{
 				return Ok(ImageRef::new(&bytes));
 			}
-			if let Ok(req) = Request::get(url).map(|r| r.header("Referer", &format!("{BASE_URL}/")))
+			if !primary.is_empty()
+				&& let Ok(req) = Request::get(primary)
 				&& let Ok(resp) = req.send()
 				&& resp.status_code() < 400
 				&& let Ok(bytes) = resp.get_data()
