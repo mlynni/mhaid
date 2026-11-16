@@ -3,7 +3,7 @@ use aidoku::{
 	Chapter, ContentRating, DeepLinkHandler, DeepLinkResult, FilterValue, ImageRequestProvider,
 	Listing, ListingProvider, Manga, MangaPageResult, MangaStatus, Page, PageContext, Result,
 	Source, Viewer,
-	alloc::{String, Vec, string::ToString, vec},
+	alloc::{String, Vec, borrow::Cow, string::ToString, vec},
 	imports::{html::Html, net::Request, std::send_partial_result},
 	prelude::*,
 };
@@ -32,7 +32,7 @@ impl Source for MangaFire {
 		page: i32,
 		filters: Vec<FilterValue>,
 	) -> Result<MangaPageResult> {
-		let mut qs = Vec::new();
+		let mut qs: Vec<(Cow<'_, str>, Cow<'_, str>)> = Vec::new();
 
 		// parse filters
 		for filter in filters {
