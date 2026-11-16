@@ -38,7 +38,7 @@ struct AxiosRequest {
 #[derive(Deserialize)]
 struct WebViewFetchResult {
 	done: bool,
-	status: Option<u16>,
+	status: Option<i32>,
 	enc: Option<String>,
 	body: Option<String>,
 	error: Option<String>,
@@ -455,7 +455,7 @@ impl ComixWebView {
 		create_request_get(&signed)
 	}
 
-	fn is_challenged_status(status: u16, body: &str) -> bool {
+	fn is_challenged_status(status: i32, body: &str) -> bool {
 		(status == 403 || status == 429)
 			&& (body.contains(WAF_CHALLENGE_KEY)
 				|| body.contains(THIRD_PARTY_APP_KEY)
@@ -517,7 +517,7 @@ impl ComixWebView {
 		false
 	}
 
-	pub fn fetch_via_webview(&mut self, signed_url: &str) -> Result<(u16, Option<String>, String)> {
+	pub fn fetch_via_webview(&mut self, signed_url: &str) -> Result<(i32, Option<String>, String)> {
 		if !self.is_initialized {
 			self.load_webview()?
 		}
@@ -622,7 +622,7 @@ impl ComixWebView {
 
 	fn decode_payload<T: DeserializeOwned>(
 		&mut self,
-		status_code: u16,
+		status_code: i32,
 		cf_mitigated: Option<&str>,
 		enc_header: Option<&str>,
 		body: &str,
