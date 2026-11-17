@@ -19,8 +19,8 @@
 			"packageFile": "en.atsumaru-v12.aix",
 			"iconFile": "en.atsumaru-v12.png",
 			"status": "ready",
-			"lastMihonCommit": "53ca84819ae31a9651178b669bc24861f480c2c3",
-			"lastAidokuCommit": "4a4e1c90069a98b6b675f78fb9b1680dbc5202ec"
+			"lastMihonCommit": "6047e9736a51379e04b500b3f1df134102999c28",
+			"lastAidokuCommit": "1d8567666735721cc8a0f632ff4191c78e3e6079"
 		},
 		{
 			"id": "en.comix",
@@ -37,8 +37,8 @@
 			"packageFile": "en.comix-v30.aix",
 			"iconFile": "en.comix-v30.png",
 			"status": "ready",
-			"lastMihonCommit": "53ca84819ae31a9651178b669bc24861f480c2c3",
-			"lastAidokuCommit": "4a4e1c90069a98b6b675f78fb9b1680dbc5202ec"
+			"lastMihonCommit": "9c66c1f7b6774c03ee04ec386e4c9dd88949c660",
+			"lastAidokuCommit": "bef3b479995b5b08b4759fdc1acca4d2c679014a"
 		},
 		{
 			"id": "multi.mangadex",
@@ -108,8 +108,8 @@
 			"packageFile": "multi.mangadex-v16.aix",
 			"iconFile": "multi.mangadex-v16.png",
 			"status": "ready",
-			"lastMihonCommit": "53ca84819ae31a9651178b669bc24861f480c2c3",
-			"lastAidokuCommit": "4a4e1c90069a98b6b675f78fb9b1680dbc5202ec"
+			"lastMihonCommit": "92670aa02dfa48aa0e29689c849d4159397feaa9",
+			"lastAidokuCommit": "6ed4215e1572155e57ccdda5a4814735d48d53ea"
 		},
 		{
 			"id": "multi.mangafire",
@@ -132,8 +132,8 @@
 			"packageFile": "multi.mangafire-v9.aix",
 			"iconFile": "multi.mangafire-v9.png",
 			"status": "ready",
-			"lastMihonCommit": "53ca84819ae31a9651178b669bc24861f480c2c3",
-			"lastAidokuCommit": "4a4e1c90069a98b6b675f78fb9b1680dbc5202ec"
+			"lastMihonCommit": "a6a0dffe2573dd9e3998594492b97f630a4d1c1c",
+			"lastAidokuCommit": "4f8922e1c939285ce6687e4af225d22d0deec093"
 		},
 		{
 			"id": "en.weebcentral",
@@ -150,8 +150,8 @@
 			"packageFile": "en.weebcentral-v9.aix",
 			"iconFile": "en.weebcentral-v9.png",
 			"status": "ready",
-			"lastMihonCommit": "53ca84819ae31a9651178b669bc24861f480c2c3",
-			"lastAidokuCommit": "4a4e1c90069a98b6b675f78fb9b1680dbc5202ec"
+			"lastMihonCommit": "4fb9bb8186fd16d6c9ad545cd30bbe06f3ae9416",
+			"lastAidokuCommit": "4f8922e1c939285ce6687e4af225d22d0deec093"
 		},
 		{
 			"id": "multi.kagane",
@@ -182,8 +182,8 @@
 			"packageFile": "multi.kagane-v26.aix",
 			"iconFile": "multi.kagane-v26.png",
 			"status": "ready",
-			"lastMihonCommit": "53ca84819ae31a9651178b669bc24861f480c2c3",
-			"lastAidokuCommit": "4a4e1c90069a98b6b675f78fb9b1680dbc5202ec"
+			"lastMihonCommit": "936e23d3d0c02dbeff65ee885a0f351efad97566",
+			"lastAidokuCommit": "54d287d5af7697d4b053d5aeee24283a32b1945b"
 		},
 		{
 			"id": "multi.mangaplus",
@@ -208,8 +208,8 @@
 			"packageFile": "multi.mangaplus-v6.aix",
 			"iconFile": "multi.mangaplus-v6.png",
 			"status": "ready",
-			"lastMihonCommit": "53ca84819ae31a9651178b669bc24861f480c2c3",
-			"lastAidokuCommit": "4a4e1c90069a98b6b675f78fb9b1680dbc5202ec"
+			"lastMihonCommit": "fc7a827769f612dfa6dccb51e819f5b4eecaeab5",
+			"lastAidokuCommit": "4f8922e1c939285ce6687e4af225d22d0deec093"
 		},
 		{
 			"id": "multi.mangaball",
@@ -259,8 +259,8 @@
 			"packageFile": "multi.mangaball-v14.aix",
 			"iconFile": "multi.mangaball-v14.png",
 			"status": "ready",
-			"lastMihonCommit": "53ca84819ae31a9651178b669bc24861f480c2c3",
-			"lastAidokuCommit": "4a4e1c90069a98b6b675f78fb9b1680dbc5202ec"
+			"lastMihonCommit": "e7ceaee47a657d3d26dfdf3e9d16c3f079ddf3e2",
+			"lastAidokuCommit": "a607bebe5a5249a3127ebace31b7bdf865f65efa"
 		},
 		{
 			"id": "en.mangadot",
@@ -319,7 +319,7 @@
 			"packageFile": "en.mangadot-v20.aix",
 			"iconFile": "en.mangadot-v20.png",
 			"status": "ready",
-			"lastMihonCommit": "53ca84819ae31a9651178b669bc24861f480c2c3",
+			"lastMihonCommit": "2c02d07b814b8ac6e9ec9e21a8b2b07478dd3002",
 			"lastAidokuCommit": null
 		},
 		{
@@ -379,8 +379,8 @@
 			"packageFile": "multi.mangadotnet-v10.aix",
 			"iconFile": "multi.mangadotnet-v10.png",
 			"status": "ready",
-			"lastMihonCommit": "53ca84819ae31a9651178b669bc24861f480c2c3",
-			"lastAidokuCommit": "4a4e1c90069a98b6b675f78fb9b1680dbc5202ec"
+			"lastMihonCommit": "2c02d07b814b8ac6e9ec9e21a8b2b07478dd3002",
+			"lastAidokuCommit": "4ac84147993976d822f62632740d8870903279b9"
 		},
 		{
 			"id": "en.mangabat",
@@ -397,8 +397,8 @@
 			"packageFile": "en.mangabat-v9.aix",
 			"iconFile": "en.mangabat-v9.png",
 			"status": "ready",
-			"lastMihonCommit": "53ca84819ae31a9651178b669bc24861f480c2c3",
-			"lastAidokuCommit": "4a4e1c90069a98b6b675f78fb9b1680dbc5202ec"
+			"lastMihonCommit": "d06a890333ec0ec97fe18cf542a63dc689db7e6b",
+			"lastAidokuCommit": "4f8922e1c939285ce6687e4af225d22d0deec093"
 		},
 		{
 			"id": "en.mangago",
@@ -415,8 +415,8 @@
 			"packageFile": "en.mangago-v4.aix",
 			"iconFile": "en.mangago-v4.png",
 			"status": "ready",
-			"lastMihonCommit": "53ca84819ae31a9651178b669bc24861f480c2c3",
-			"lastAidokuCommit": "4a4e1c90069a98b6b675f78fb9b1680dbc5202ec"
+			"lastMihonCommit": "fc7a827769f612dfa6dccb51e819f5b4eecaeab5",
+			"lastAidokuCommit": "2b0996dcdaf4529b36e059882f8bf50d33d87bb5"
 		},
 		{
 			"id": "en.mangakakalot",
@@ -433,8 +433,8 @@
 			"packageFile": "en.mangakakalot-v6.aix",
 			"iconFile": "en.mangakakalot-v6.png",
 			"status": "ready",
-			"lastMihonCommit": "53ca84819ae31a9651178b669bc24861f480c2c3",
-			"lastAidokuCommit": "4a4e1c90069a98b6b675f78fb9b1680dbc5202ec"
+			"lastMihonCommit": "e2cf771063bff45bde904a2d92552c606310cab4",
+			"lastAidokuCommit": "4f8922e1c939285ce6687e4af225d22d0deec093"
 		},
 		{
 			"id": "en.manganato",
@@ -451,8 +451,8 @@
 			"packageFile": "en.manganato-v8.aix",
 			"iconFile": "en.manganato-v8.png",
 			"status": "ready",
-			"lastMihonCommit": "53ca84819ae31a9651178b669bc24861f480c2c3",
-			"lastAidokuCommit": "4a4e1c90069a98b6b675f78fb9b1680dbc5202ec"
+			"lastMihonCommit": "c4a70b6f27aed26ce0a8cf9adaff355dee72370e",
+			"lastAidokuCommit": "4f8922e1c939285ce6687e4af225d22d0deec093"
 		},
 		{
 			"id": "en.manganelo",
@@ -469,8 +469,8 @@
 			"packageFile": "en.manganelo-v4.aix",
 			"iconFile": "en.manganelo-v4.png",
 			"status": "ready",
-			"lastMihonCommit": "53ca84819ae31a9651178b669bc24861f480c2c3",
-			"lastAidokuCommit": "4a4e1c90069a98b6b675f78fb9b1680dbc5202ec"
+			"lastMihonCommit": "c4a70b6f27aed26ce0a8cf9adaff355dee72370e",
+			"lastAidokuCommit": "4f8922e1c939285ce6687e4af225d22d0deec093"
 		},
 		{
 			"id": "en.mangapill",
@@ -487,7 +487,7 @@
 			"packageFile": "en.mangapill-v4.aix",
 			"iconFile": "en.mangapill-v4.png",
 			"status": "ready",
-			"lastMihonCommit": "53ca84819ae31a9651178b669bc24861f480c2c3",
+			"lastMihonCommit": "fc7a827769f612dfa6dccb51e819f5b4eecaeab5",
 			"lastAidokuCommit": null
 		},
 		{
@@ -505,8 +505,8 @@
 			"packageFile": "en.toonily-v10.aix",
 			"iconFile": "en.toonily-v10.png",
 			"status": "ready",
-			"lastMihonCommit": "53ca84819ae31a9651178b669bc24861f480c2c3",
-			"lastAidokuCommit": "4a4e1c90069a98b6b675f78fb9b1680dbc5202ec"
+			"lastMihonCommit": "c481bfccc9044c2e733f4c3cd0f193875d1a0524",
+			"lastAidokuCommit": "4f8922e1c939285ce6687e4af225d22d0deec093"
 		}
 	]
 }
