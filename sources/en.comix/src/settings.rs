@@ -13,7 +13,7 @@ const THUMBNAIL_QUALITY_KEY: &str = "thumbnailQuality";
 const CONTENT_RATING_KEY: &str = "contentRating";
 const DEDUPED_CHAPTER_KEY: &str = "dedupedChapter";
 const SCANLATOR_BLACKLIST_KEY: &str = "scanlatorBlacklist";
-const SCORE_POSITION_KEY: &str = "scorePosition";
+const SHOW_SCORE_KEY: &str = "showScore";
 const SHOW_EXTRA_INFO_KEY: &str = "showExtraInfo";
 const ALT_NAMES_IN_DESC_KEY: &str = "altNamesInDesc";
 const SHOW_TAGS_IN_GENRES_KEY: &str = "showTagsInGenres";
@@ -112,8 +112,8 @@ pub fn scanlator_blacklist() -> Vec<String> {
 		.collect()
 }
 
-pub fn score_position() -> String {
-	defaults_get::<String>(SCORE_POSITION_KEY).unwrap_or_else(|| "bottom".into())
+pub fn show_score() -> bool {
+	defaults_get::<bool>(SHOW_SCORE_KEY).unwrap_or(true)
 }
 
 pub fn show_extra_info() -> bool {

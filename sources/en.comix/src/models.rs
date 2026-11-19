@@ -267,7 +267,6 @@ impl ComixManga {
 		let description = if detailed {
 			let mut parts: Vec<String> = Vec::new();
 			let mut extra_sections: Vec<String> = Vec::new();
-			let score_pos = settings::score_position();
 			let score_line = self
 				.rated_avg
 				.filter(|&s| s > 0.0)
@@ -306,7 +305,7 @@ impl ComixManga {
 				}
 			}
 
-			if score_pos != "none"
+			if settings::show_score()
 				&& let Some(line) = score_line
 			{
 				extra_sections.push(line);

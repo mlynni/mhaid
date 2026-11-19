@@ -90,12 +90,10 @@
 		"title": "Display",
 		"items": [
 			{
-				"type": "select",
-				"key": "scorePosition",
-				"title": "Score Display",
-				"values": ["bottom", "top", "none"],
-				"titles": ["Show under 'more'", "Show in extra info", "Do not show"],
-				"default": "bottom",
+				"type": "switch",
+				"key": "showScore",
+				"title": "Show Score in Description",
+				"default": true,
 				"refreshes": ["content"]
 			},
 			{
