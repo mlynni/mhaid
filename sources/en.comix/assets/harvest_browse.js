@@ -213,7 +213,7 @@
             items = collect();
         }
         if (items.length) {
-            items = await waitForStable(collect, { timeoutMs: 6000, intervalMs: 250, stableRounds: 2 }) || items;
+            items = await waitForStable(collect, { timeoutMs: 4000, intervalMs: 150, stableRounds: 1 }) || items;
         }
         if (window.__comixWaf) return null;
 

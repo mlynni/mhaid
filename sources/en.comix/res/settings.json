@@ -1,7 +1,7 @@
 [
 	{
 		"type": "group",
-		"title": "Mirror",
+		"title": "Connection",
 		"items": [
 			{
 				"type": "select",
@@ -11,9 +11,27 @@
 				"titles": ["comix.to", "comix.ws"],
 				"default": "https://comix.to",
 				"refreshes": ["content", "listings"]
+			},
+			{
+				"type": "login",
+				"method": "web",
+				"url": "https://comix.to/@waf/challenge?return=/",
+				"key": "verify",
+				"title": "Verify comix.to",
+				"logoutTitle": "comix.to: verified ✓ (tap to reset)",
+				"refreshes": ["content", "listings"]
+			},
+			{
+				"type": "login",
+				"method": "web",
+				"url": "https://comix.ws/@waf/challenge?return=/",
+				"key": "verifyWs",
+				"title": "Verify comix.ws",
+				"logoutTitle": "comix.ws: verified ✓ (tap to reset)",
+				"refreshes": ["content", "listings"]
 			}
 		],
-		"footer": "Switch between comix.to and comix.ws mirrors. If one mirror asks for a check or is slow, try switching mirrors."
+		"footer": "Pick the mirror you want to use. Comix passes its security check on its own most of the time, and the entry for the active mirror turns into \"verified ✓\" once pages load. Only open Verify if Comix asks for a check."
 	},
 	{
 		"type": "group",
@@ -223,30 +241,5 @@
 			}
 		],
 		"footer": "Default filters apply to Home, Listings, and Browse unless overridden in Search Filters."
-	},
-	{
-		"type": "group",
-		"title": "Site Check",
-		"items": [
-			{
-				"type": "login",
-				"method": "web",
-				"url": "https://comix.to/@waf/challenge?return=/",
-				"key": "verify",
-				"title": "Verify comix.to in WebView",
-				"logoutTitle": "Reset comix.to Check",
-				"refreshes": ["content", "listings"]
-			},
-			{
-				"type": "login",
-				"method": "web",
-				"url": "https://comix.ws/@waf/challenge?return=/",
-				"key": "verifyWs",
-				"title": "Verify comix.ws in WebView",
-				"logoutTitle": "Reset comix.ws Check",
-				"refreshes": ["content", "listings"]
-			}
-		],
-		"footer": "Normally not needed. Open the check matching your selected mirror only if Comix asks for verification."
 	}
 ]

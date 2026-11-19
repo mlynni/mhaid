@@ -29,6 +29,28 @@ pub fn base_url() -> String {
 		.unwrap_or_else(|| DEFAULT_MIRROR.into())
 }
 
+/// Keeps the "Verify" menu entry of the active mirror in sync with reality.
+///
+/// Aidoku shows a login item as "logged in" whenever its settings key is non-empty, but it only
+/// sets that key after the manual WebView check finishes. Comix often passes its check on its own
+/// while loading pages, so we flip the key ourselves based on whether the site actually loaded.
+pub fn mark_verified(ok: bool) {
+	let key = if base_url().contains("comix.ws") {
+		VERIFY_WS_KEY
+	} else {
+		VERIFY_KEY
+	};
+	let current = defaults_get::<String>(key).is_some_and(|s| !s.is_empty());
+	if ok == current {
+		return;
+	}
+	if ok {
+		defaults_set(key, DefaultValue::String("logged_in".into()));
+	} else {
+		defaults_set(key, DefaultValue::Null);
+	}
+}
+
 pub fn alternate_mirror(url: &str) -> Option<String> {
 	if url.contains("comix.to") {
 		Some(url.replacen("comix.to", "comix.ws", 1))

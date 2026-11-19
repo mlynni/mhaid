@@ -1,5 +1,5 @@
 use crate::{
-	helpers,
+	helpers, settings,
 	models::{
 		BrowseHarvestResult, ChaptersHarvestResult, InitialData, PagesHarvestResult,
 		TagsSearchResponse,
@@ -99,13 +99,20 @@ fn recover_from_waf(wv: &WebView, url: &str, wait_for_initial_data: bool) -> Res
 		}
 	}
 	if !cleared {
+		settings::mark_verified(false);
 		bail!("{WAF_ERROR_MSG}");
 	}
 	// The check may redirect to `/` instead of the page we wanted, so load it again.
 	wv.load(Request::get(url)?)?;
 	match wait_webview_ready(wv, 20, wait_for_initial_data)? {
-		Ready::Page => Ok(()),
-		Ready::Waf => bail!("{WAF_ERROR_MSG}"),
+		Ready::Page => {
+			settings::mark_verified(true);
+			Ok(())
+		}
+		Ready::Waf => {
+			settings::mark_verified(false);
+			bail!("{WAF_ERROR_MSG}")
+		}
 	}
 }
 
@@ -114,7 +121,7 @@ fn open_page(url: &str, wait_for_initial_data: bool) -> Result<WebView> {
 	let wv = WebView::new();
 	wv.load(Request::get(url)?)?;
 	match wait_webview_ready(&wv, 20, wait_for_initial_data)? {
-		Ready::Page => {}
+		Ready::Page => settings::mark_verified(true),
 		Ready::Waf => recover_from_waf(&wv, url, wait_for_initial_data)?,
 	}
 	Ok(wv)
@@ -161,6 +168,7 @@ fn run_script<T: DeserializeOwned>(
 			Polled::Waf => break,
 		}
 	}
+	settings::mark_verified(false);
 	bail!("{WAF_ERROR_MSG}")
 }
 
