@@ -27,7 +27,7 @@
         }
     };
 
-    const waitFor = async (check, { timeoutMs = 30000, intervalMs = 150 } = {}) => {
+    const waitFor = async (check, { timeoutMs = 20000, intervalMs = 30 } = {}) => {
         const deadline = Date.now() + timeoutMs;
         for (;;) {
             if (isWafPage()) {
@@ -196,7 +196,7 @@
 
     const isChaptersEmpty = () => !!document.querySelector(".mpage__chapters .uempty");
 
-    const OPTIONS = { timeoutMs: 25000, settleMs: 4500, pollMs: 120, maxRounds: 60 };
+    const OPTIONS = { timeoutMs: 20000, settleMs: 1800, pollMs: 30, maxRounds: 60 };
 
     const harvest = async () => {
         if (isWafPage()) {
@@ -270,8 +270,6 @@
         };
 
         const activate = async (el) => {
-            try { el.scrollIntoView({ block: "center" }); } catch (e) {}
-            await sleep(80);
             try { el.click(); } catch (e) {
                 try {
                     el.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true }));
@@ -304,7 +302,7 @@
                 await activate(control);
                 grew = await waitFor(
                     () => (absorb(), byId.size > before) || null,
-                    { timeoutMs: OPTIONS.settleMs, intervalMs: OPTIONS.pollMs }
+                    { timeoutMs: 600, intervalMs: OPTIONS.pollMs }
                 );
                 if (grew === "__WAF__") return null;
             }

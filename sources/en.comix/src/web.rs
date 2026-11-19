@@ -10,7 +10,7 @@ use aidoku::{
 	alloc::{String, Vec, string::ToString},
 	helpers::uri::encode_uri_component,
 	imports::{
-		js::WebView,
+		js::{JsContext, WebView},
 		net::Request,
 		std::sleep,
 	},
@@ -63,8 +63,22 @@ enum Polled<T> {
 	Waf,
 }
 
+fn sleep_ms(ms: u32) {
+	let ctx = JsContext::new();
+	let _ = ctx.eval(&format!("var t=Date.now()+{ms};while(Date.now()<t){{}};''"));
+}
+
+fn pause_poll(step: i32, fast_steps: i32) {
+	if step < fast_steps {
+		sleep_ms(60);
+	} else {
+		sleep(1);
+	}
+}
+
 fn wait_webview_ready(wv: &WebView, timeout_secs: i32, wait_for_initial_data: bool) -> Result<Ready> {
-	for _ in 0..timeout_secs {
+	const FAST_STEPS: i32 = 40;
+	for step in 0..(FAST_STEPS + timeout_secs) {
 		if let Ok(raw) = wv.eval(READY_PROBE_JS)
 			&& let Ok(probe) = serde_json::from_str::<ReadyProbe>(&raw)
 		{
@@ -78,7 +92,7 @@ fn wait_webview_ready(wv: &WebView, timeout_secs: i32, wait_for_initial_data: bo
 				return Ok(Ready::Page);
 			}
 		}
-		sleep(1);
+		pause_poll(step, FAST_STEPS);
 	}
 	bail!("Timed out waiting for Comix WebView to load")
 }
@@ -128,7 +142,9 @@ fn open_page(url: &str, wait_for_initial_data: bool) -> Result<WebView> {
 }
 
 fn poll_webview_result<T: DeserializeOwned>(wv: &WebView, max_secs: i32) -> Result<Polled<T>> {
-	for _ in 0..max_secs {
+	const FAST_STEPS: i32 = 45;
+	sleep_ms(45);
+	for step in 0..(FAST_STEPS + max_secs) {
 		if let Ok(raw) = wv.eval(POLL_RESULT_JS)
 			&& let Ok(state) = serde_json::from_str::<PollState>(&raw)
 		{
@@ -146,7 +162,7 @@ fn poll_webview_result<T: DeserializeOwned>(wv: &WebView, max_secs: i32) -> Resu
 					.map_err(|e| error!("Failed to parse Comix WebView result: {e}"));
 			}
 		}
-		sleep(1);
+		pause_poll(step, FAST_STEPS);
 	}
 	bail!("Timed out waiting for Comix page data")
 }
@@ -172,17 +188,27 @@ fn run_script<T: DeserializeOwned>(
 	bail!("{WAF_ERROR_MSG}")
 }
 
+fn try_http_initial_data(url: &str) -> Option<InitialData> {
+	let req = Request::get(url)
+		.ok()?
+		.header("Accept", "text/html,application/xhtml+xml");
+	let resp = req.send().ok()?;
+	if resp.status_code() >= 400 {
+		return None;
+	}
+	let html = resp.get_string().ok()?;
+	if helpers::is_waf_or_cf_html(&html) {
+		return None;
+	}
+	let json_str = helpers::extract_initial_data_json(&html)?;
+	let parsed = serde_json::from_str::<InitialData>(json_str).ok()?;
+	settings::mark_verified(true);
+	Some(parsed)
+}
+
 /// Fetches SSR `script#initial-data` via HTTP first, falling back to WebView if challenged.
 pub fn fetch_initial_data(url: &str) -> Result<InitialData> {
-	if let Ok(req) = Request::get(url)
-		.map(|r| r.header("Accept", "text/html,application/xhtml+xml"))
-		&& let Ok(resp) = req.send()
-		&& resp.status_code() < 400
-		&& let Ok(html) = resp.get_string()
-		&& !helpers::is_waf_or_cf_html(&html)
-		&& let Some(json_str) = helpers::extract_initial_data_json(&html)
-		&& let Ok(parsed) = serde_json::from_str::<InitialData>(json_str)
-	{
+	if let Some(parsed) = try_http_initial_data(url) {
 		return Ok(parsed);
 	}
 
@@ -251,27 +277,41 @@ pub fn harvest_title_page<F>(
 where
 	F: FnOnce(&InitialData),
 {
-	if !needs_chapters {
-		if needs_details {
-			let data = fetch_initial_data(url)?;
-			on_details(&data);
-			return Ok((Some(data), None));
+	let mut on_details = Some(on_details);
+	let mut details: Option<InitialData> = None;
+
+	if needs_details
+		&& let Some(data) = try_http_initial_data(url)
+	{
+		if let Some(cb) = on_details.take() {
+			cb(&data);
 		}
-		return Ok((None, None));
+		details = Some(data);
 	}
 
-	let wv = open_page(url, needs_details)?;
+	if !needs_chapters {
+		if needs_details && details.is_none() {
+			let data = fetch_initial_data(url)?;
+			if let Some(cb) = on_details.take() {
+				cb(&data);
+			}
+			return Ok((Some(data), None));
+		}
+		return Ok((details, None));
+	}
 
-	let details = if needs_details {
+	let wv = open_page(url, needs_details && details.is_none())?;
+
+	if needs_details && details.is_none() {
 		let raw = wv.eval(READ_INITIAL_DATA_JS).unwrap_or_default();
 		let parsed = serde_json::from_str::<InitialData>(&raw).ok();
-		if let Some(ref data) = parsed {
-			on_details(data);
+		if let Some(ref data) = parsed
+			&& let Some(cb) = on_details.take()
+		{
+			cb(data);
 		}
-		parsed
-	} else {
-		None
-	};
+		details = parsed;
+	}
 
 	let chapters: ChaptersHarvestResult = run_script(
 		&wv,

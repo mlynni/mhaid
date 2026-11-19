@@ -25,7 +25,7 @@ https://raw.githubusercontent.com/mlynni/mlyn-aidoku-sources/gh-pages/index.min.
 | Source | ID | Version | Languages | Min. Aidoku | Base URL | Notes |
 |---|---|---:|---|---:|---|---|
 | Atsumaru | `en.atsumaru` | `v12` | `en` | `0.7.1` | https://atsu.moe | Direct JSON API |
-| Comix | `en.comix` | `v32` | `en` | `0.8.4` | https://comix.to | Rewritten from Mihon v64: WebView SPA harvesters, mirror switcher (`comix.to` / `comix.ws`), descrambler |
+| Comix | `en.comix` | `v35` | `en` | `0.8.4` | https://comix.to | Rewritten from Mihon v64: WebView SPA harvesters, mirror switcher (`comix.to` / `comix.ws`), descrambler |
 | Kagane | `multi.kagane` | `v26` | 15 languages | `0.7.1` | https://kagane.moe | Multi-language manhwa & manga |
 | MANGA Plus | `multi.mangaplus` | `v6` | 9 languages | `0.7.2` | https://mangaplus.shueisha.co.jp | Official Shueisha releases |
 | Mangaball | `multi.mangaball` | `v14` | 34 languages (incl. `uk`) | `0.7.1` | https://mangaball.com | Multi-CDN poster fallback & `.512.jpg` cover optimization |

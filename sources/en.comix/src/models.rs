@@ -266,26 +266,50 @@ impl ComixManga {
 
 		let description = if detailed {
 			let mut parts: Vec<String> = Vec::new();
+			let mut extra_sections: Vec<String> = Vec::new();
 			let score_pos = settings::score_position();
 			let score_line = self
 				.rated_avg
 				.filter(|&s| s > 0.0)
 				.map(|s| helpers::format_score(s, self.rated_count));
 
-			if score_pos == "top"
-				&& let Some(line) = score_line.as_ref()
-			{
-				parts.push(line.clone());
-			}
-
 			if let Some(synopsis) = self.synopsis.as_deref().filter(|s| !s.trim().is_empty()) {
-				parts.push(synopsis.trim().to_string());
+				let normalized = synopsis.replace("\r\n", "\n").replace('\r', "\n");
+				let mut main_lines: Vec<String> = Vec::new();
+				let mut link_lines: Vec<String> = Vec::new();
+				let mut in_links = false;
+				for raw_line in normalized.lines() {
+					let line = raw_line.trim();
+					if line.is_empty() {
+						continue;
+					}
+					let lower = line.to_ascii_lowercase();
+					if lower.starts_with("**original ")
+						|| lower.starts_with("**official ")
+						|| lower.starts_with("[original ")
+						|| lower.starts_with("original webtoon")
+						|| lower.starts_with("official translation")
+					{
+						in_links = true;
+					}
+					if in_links {
+						link_lines.push(line.to_string());
+					} else {
+						main_lines.push(line.to_string());
+					}
+				}
+				if !main_lines.is_empty() {
+					parts.push(main_lines.join(" "));
+				}
+				if !link_lines.is_empty() {
+					extra_sections.push(link_lines.join("\n"));
+				}
 			}
 
-			if score_pos == "bottom"
-				&& let Some(line) = score_line.as_ref()
+			if score_pos != "none"
+				&& let Some(line) = score_line
 			{
-				parts.push(line.clone());
+				extra_sections.push(line);
 			}
 
 			if settings::alt_names_in_desc() && !self.alt_titles.is_empty() {
@@ -296,7 +320,7 @@ impl ComixManga {
 					.filter(|s| !s.is_empty())
 					.collect();
 				if !filtered.is_empty() {
-					parts.push(format!("Alternative Titles:\n- {}", filtered.join("\n- ")));
+					extra_sections.push(format!("Alternative Titles:\n- {}", filtered.join("\n- ")));
 				}
 			}
 
@@ -341,10 +365,11 @@ impl ComixManga {
 					}
 				}
 				if !meta.is_empty() {
-					parts.push(meta.join("\n"));
+					extra_sections.push(meta.join("\n"));
 				}
 			}
 
+			parts.extend(extra_sections);
 			(!parts.is_empty()).then(|| parts.join("\n\n"))
 		} else {
 			None

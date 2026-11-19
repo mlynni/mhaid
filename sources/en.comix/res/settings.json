@@ -92,10 +92,10 @@
 			{
 				"type": "select",
 				"key": "scorePosition",
-				"title": "Score Display Position",
-				"values": ["top", "bottom", "none"],
-				"titles": ["Top of description", "Bottom of description", "Do not show"],
-				"default": "top",
+				"title": "Score Display",
+				"values": ["bottom", "top", "none"],
+				"titles": ["Show under 'more'", "Show in extra info", "Do not show"],
+				"default": "bottom",
 				"refreshes": ["content"]
 			},
 			{

@@ -25,7 +25,7 @@
         }
     };
 
-    const waitFor = async (check, { timeoutMs = 25000, intervalMs = 250 } = {}) => {
+    const waitFor = async (check, { timeoutMs = 25000, intervalMs = 35 } = {}) => {
         const deadline = Date.now() + timeoutMs;
         for (;;) {
             if (isWafPage()) {
@@ -207,13 +207,16 @@
         if (!items.length && !isEmptyRendered()) {
             const waitRes = await waitFor(
                 () => (collect().length > 0 || isEmptyRendered()) ? true : null,
-                { timeoutMs: 25000, intervalMs: 250 }
+                { timeoutMs: 20000, intervalMs: 35 }
             );
             if (waitRes === "__WAF__") return null;
             items = collect();
         }
-        if (items.length) {
-            items = await waitForStable(collect, { timeoutMs: 4000, intervalMs: 150, stableRounds: 1 }) || items;
+        const expectedPerPage = (list && list.perPage) || 28;
+        const alreadyComplete = items.length >= expectedPerPage ||
+            (items.length > 0 && items.every((x) => x.title && x.cover));
+        if (items.length && !alreadyComplete) {
+            items = await waitForStable(collect, { timeoutMs: 500, intervalMs: 40, stableRounds: 1 }) || items;
         }
         if (window.__comixWaf) return null;
 

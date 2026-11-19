@@ -365,6 +365,17 @@ function buildIndex(baseUrl = "") {
 			}
 		}
 
+		// Keep backward-compatible alias files for the last 5 version numbers so Aidoku clients
+		// with a stale cached index.min.json still download a valid 200 OK .aix with the latest payload.
+		for (let v = Math.max(1, pkgVersion - 5); v < pkgVersion; v++) {
+			const aliasAix = path.join(pubSourcesDir, `${pkgInfo.id}-v${v}.aix`);
+			fs.copyFileSync(aixPath, aliasAix);
+			if (fs.existsSync(iconOutPath)) {
+				const aliasIcon = path.join(pubIconsDir, `${pkgInfo.id}-v${v}.png`);
+				fs.copyFileSync(iconOutPath, aliasIcon);
+			}
+		}
+
 		const entry = {
 			id: pkgInfo.id,
 			name: pkgInfo.name,

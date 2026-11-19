@@ -8,10 +8,10 @@
     try { localStorage.setItem("__pu1", "[" + Date.now() + "]"); } catch (e) {}
 
     const startedAt = Date.now();
-    const FIRST_PAGE_TIMEOUT_MS = 25000;
-    const WALK_TIMEOUT_MS = 75000;
-    const SLOT_TIMEOUT_MS = 8000;
-    const SETTLE_MS = 120;
+    const FIRST_PAGE_TIMEOUT_MS = 20000;
+    const WALK_TIMEOUT_MS = 60000;
+    const SLOT_TIMEOUT_MS = 5000;
+    const SETTLE_MS = 45;
     const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
     const isWafPage = () => {
@@ -162,8 +162,13 @@
             if (slots.length) return true;
         }
         const reader = findReader();
-        const settled = reader && candidate && reader.element === candidate.element &&
-            reader.slots.length === candidate.slots.length;
+        if (!reader || !reader.slots || !reader.slots.length) {
+            candidate = reader;
+            return false;
+        }
+        const hasExplicitPages = reader.slots[0].hasAttribute && reader.slots[0].hasAttribute("data-page");
+        const settled = hasExplicitPages || (candidate && reader.element === candidate.element &&
+            reader.slots.length === candidate.slots.length);
         candidate = reader;
         if (!settled) return false;
         ({ element: container, slots } = reader);
@@ -192,7 +197,7 @@
                 return false;
             }
             if (attachReader() && total > 0) return true;
-            await sleep(200);
+            await sleep(40);
         }
         throw new Error("The reader did not load any pages");
     };

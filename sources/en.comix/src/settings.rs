@@ -113,7 +113,7 @@ pub fn scanlator_blacklist() -> Vec<String> {
 }
 
 pub fn score_position() -> String {
-	defaults_get::<String>(SCORE_POSITION_KEY).unwrap_or_else(|| "top".into())
+	defaults_get::<String>(SCORE_POSITION_KEY).unwrap_or_else(|| "bottom".into())
 }
 
 pub fn show_extra_info() -> bool {
