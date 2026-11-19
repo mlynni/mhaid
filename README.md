@@ -25,7 +25,7 @@ https://raw.githubusercontent.com/mlynni/mlyn-aidoku-sources/gh-pages/index.min.
 | Source | ID | Version | Languages | Min. Aidoku | Base URL | Notes |
 |---|---|---:|---|---:|---|---|
 | Atsumaru | `en.atsumaru` | `v12` | `en` | `0.7.1` | https://atsu.moe | Direct JSON API |
-| Comix | `en.comix` | `v31` | `en` | `0.8.4` | https://comix.to | Rewritten from Mihon v64: WebView SPA harvesters, mirror switcher (`comix.to` / `comix.ws`), descrambler |
+| Comix | `en.comix` | `v32` | `en` | `0.8.4` | https://comix.to | Rewritten from Mihon v64: WebView SPA harvesters, mirror switcher (`comix.to` / `comix.ws`), descrambler |
 | Kagane | `multi.kagane` | `v26` | 15 languages | `0.7.1` | https://kagane.moe | Multi-language manhwa & manga |
 | MANGA Plus | `multi.mangaplus` | `v6` | 9 languages | `0.7.2` | https://mangaplus.shueisha.co.jp | Official Shueisha releases |
 | Mangaball | `multi.mangaball` | `v14` | 34 languages (incl. `uk`) | `0.7.1` | https://mangaball.com | Multi-CDN poster fallback & `.512.jpg` cover optimization |
@@ -42,27 +42,35 @@ https://raw.githubusercontent.com/mlynni/mlyn-aidoku-sources/gh-pages/index.min.
 | Toonily | `en.toonily` | `v10` | `en` | `0.7.1` | https://toonily.com | `madara` template (18+) |
 | Weeb Central | `en.weebcentral` | `v9` | `en` | `0.7.1` | https://weebcentral.com | Full catalog & filters |
 
-> **Comix note:** Rewritten from Mihon's WebView architecture without reverse-engineered API signing, avoiding frequent verification drops. You can switch between `https://comix.to` and `https://comix.ws` in **Comix → Settings → Mirror**; use **Open Site Check in WebView** only if Comix explicitly asks for verification.
+> **Comix note:** Rewritten from Mihon's WebView architecture without reverse-engineered API signing, avoiding frequent verification drops. You can switch between `https://comix.to` and `https://comix.ws` in **Comix → Settings → Mirror**; use **Site Check** (`Verify comix.to` / `Verify comix.ws`) only if Comix explicitly asks for verification.
 
 ## Maintenance & CLI
 
-A scheduled workflow ([`.github/workflows/sync-upstream.yaml`](.github/workflows/sync-upstream.yaml)) checks upstream commits every 12 hours, updates source metadata and Rust crates via [`scripts/sync-upstream.mjs`](scripts/sync-upstream.mjs), builds `.aix` archives using `aidoku package`, validates integrity with [`scripts/build-repo.mjs`](scripts/build-repo.mjs), and deploys `public/` to `gh-pages`.
+A scheduled workflow ([`.github/workflows/sync-upstream.yaml`](.github/workflows/sync-upstream.yaml)) checks Mihon upstream commits every 12 hours strictly for the 8 auto-tracked extensions (`autoSync: true` in [`extensions.json`](extensions.json): Weeb Central, MangaFire, MangaDex, Comix, MangaDotNet, Atsumaru, Mangaball, and Mangago), applies updates via [`scripts/sync-upstream.mjs`](scripts/sync-upstream.mjs), builds `.aix` archives using `aidoku package`, validates schemas & compatibility with [`scripts/build-repo.mjs`](scripts/build-repo.mjs), and deploys `public/` to `gh-pages`.
 
 ```bash
-# List tracked sources and pinned upstream commits
-node scripts/mihon-to-aidoku.mjs --list
+# Show all sources and auto-sync watch status
+node scripts/mhaid.mjs list
 
-# Port or scaffold a Mihon extension from keiyoushi/extensions-source
-node scripts/mihon-to-aidoku.mjs <extension-name>
+# Port or scaffold a Mihon extension (+ generate .cache/briefs/<id>.md)
+node scripts/mhaid.mjs port <extension-name> [--lang <code>] [--watch] [--community]
 
-# Dry-run upstream change detection
-node scripts/sync-upstream.mjs --dry-run
+# Inspect upstream Mihon changes since the pinned commit
+node scripts/mhaid.mjs diff <id-or-name>
 
-# Validate manifests and compiled .aix packages
-node scripts/build-repo.mjs --verify
+# Manage which extensions are tracked automatically
+node scripts/mhaid.mjs watch <id...>
+node scripts/mhaid.mjs unwatch <id...>
+
+# Dry-run or run upstream sync for watched extensions
+node scripts/mhaid.mjs sync --dry-run
+
+# Sync built packages from gh-pages and validate manifests, schemas, and .aix archives
+node scripts/mhaid.mjs pull-pages
+node scripts/mhaid.mjs verify
 ```
 
-To enable AI-assisted Kotlin → Rust porting in CI when upstream selectors or endpoints change, add a `GEMINI_API_KEY` secret in **Repository Settings → Secrets and variables → Actions**.
+To enable AI-assisted Kotlin/JS → Rust porting in CI when watched upstream extensions change, add a `GEMINI_API_KEY` secret in **Repository Settings → Secrets and variables → Actions**.
 
 ## Acknowledgements
 

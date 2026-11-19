@@ -72,7 +72,6 @@ function findOrCloneRepo(cacheName, scratchName, repoUrl, branch, sparsePaths, o
 		try {
 			runGit(fetchArgs, repoDir);
 		} catch {
-			// Fallback if repo was already unshallow or remote refuses --unshallow
 			runGit(["fetch", "--filter=blob:none", "origin", branch], repoDir);
 		}
 
@@ -94,13 +93,11 @@ function getLatestCommitForPath(repoDir, relPath) {
 function getChangedFilesBetween(repoDir, oldCommit, newCommit, relPath) {
 	if (!oldCommit || oldCommit === newCommit) return [];
 	try {
-		// Ensure oldCommit exists if shallow; otherwise git diff throws and we fetch it
 		runGit(["cat-file", "-e", `${oldCommit}^{commit}`], repoDir);
 	} catch {
 		try {
 			runGit(["fetch", "--filter=blob:none", "origin", oldCommit], repoDir);
 		} catch {
-			// If commit cannot be fetched, treat folder as changed
 			return [relPath];
 		}
 	}
@@ -109,6 +106,44 @@ function getChangedFilesBetween(repoDir, oldCommit, newCommit, relPath) {
 		.split(/\r?\n/)
 		.map((s) => s.trim())
 		.filter(Boolean);
+}
+
+function updateMirrorSettings(crateDir, mihonMirrors) {
+	const settingsPath = path.join(crateDir, "res", "settings.json");
+	if (!fs.existsSync(settingsPath) || !Array.isArray(mihonMirrors) || mihonMirrors.length === 0) {
+		return false;
+	}
+
+	const settings = readJson(settingsPath);
+	if (!Array.isArray(settings)) return false;
+
+	let changed = false;
+	const walk = (items) => {
+		for (const item of items) {
+			if (!item || typeof item !== "object") continue;
+			if (item.key === "mirror" && item.type === "select" && Array.isArray(item.values)) {
+				const missing = mihonMirrors.filter((u) => !item.values.includes(u));
+				if (missing.length > 0) {
+					item.values.push(...missing);
+					if (Array.isArray(item.titles)) {
+						for (const u of missing) {
+							item.titles.push(u.replace(/^https?:\/\//, "").replace(/\/+$/, ""));
+						}
+					}
+					changed = true;
+				}
+			}
+			if (Array.isArray(item.items)) {
+				walk(item.items);
+			}
+		}
+	};
+	walk(settings);
+
+	if (changed) {
+		writeJson(settingsPath, settings);
+	}
+	return changed;
 }
 
 function syncBaseUrls(crateDir, info) {
@@ -140,7 +175,6 @@ function syncBaseUrls(crateDir, info) {
 		srcManifest.info = manifestInfo;
 		writeJson(sourceJsonPath, srcManifest);
 
-		// Also update matching BASE_URL literal inside Rust files if the old primary URL was hardcoded
 		if (previousUrl && mihonPrimary) {
 			const rustDir = path.join(crateDir, "src");
 			if (fs.existsSync(rustDir)) {
@@ -158,18 +192,24 @@ function syncBaseUrls(crateDir, info) {
 		}
 	}
 
+	if (updateMirrorSettings(crateDir, mihonMirrors)) {
+		console.log(`  [mirror] Synced mirror options in res/settings.json`);
+		changed = true;
+	}
+
 	return changed;
 }
 
 function collectCrateFiles(crateDir) {
 	const files = {};
-	for (const sub of ["src", "res"]) {
+	for (const sub of ["src", "res", "assets"]) {
 		const dir = path.join(crateDir, sub);
 		if (!fs.existsSync(dir)) continue;
 		for (const f of fs.readdirSync(dir)) {
 			if (f.endsWith(".png")) continue;
-			const rel = `${sub}/${f}`;
-			files[rel] = fs.readFileSync(path.join(dir, f), "utf8");
+			const full = path.join(dir, f);
+			if (!fs.statSync(full).isFile()) continue;
+			files[`${sub}/${f}`] = fs.readFileSync(full, "utf8");
 		}
 	}
 	return files;
@@ -186,9 +226,9 @@ async function applyGeminiPort(entry, crateDir, diffText) {
 		.map(([rel, content]) => `### ${rel}\n\`\`\`\n${content.slice(0, 12000)}\n\`\`\``)
 		.join("\n\n");
 
-	const prompt = `You are porting an upstream Mihon extension update (Kotlin diff) to an existing Aidoku Rust (aidoku v0.3.0 / #![no_std]) extension crate "${entry.id}".
+	const prompt = `You are porting an upstream Mihon extension update (Kotlin/JS diff) to an existing Aidoku Rust (aidoku v0.3.0 / #![no_std]) extension crate "${entry.id}" (minAppVersion: "${entry.minAppVersion || "0.7.1"}").
 
-Upstream Mihon Kotlin diff for ${entry.mihonPath}:
+Upstream Mihon diff for ${entry.mihonPath}:
 \`\`\`diff
 ${diffText.slice(0, 35000)}
 \`\`\`
@@ -196,11 +236,16 @@ ${diffText.slice(0, 35000)}
 Current Aidoku crate files:
 ${filesBlock}
 
+Aidoku compatibility constraints (CRITICAL):
+- Target is #![no_std] Rust edition 2024 (use aidoku::alloc::{...}, include aidoku::alloc::string::ToString if calling .to_string()).
+- If minAppVersion < 0.9.0: NEVER combine DynamicSettings with LoginSetting (Postcard ABI mismatch on Aidoku 0.8.4), and NEVER call 0.9.0-only WebView methods (eval_async, add_user_script, set_rule_list, get_cookies, delete_cookie, delete_all_cookies); use WebView::new(), load(), and eval() polling.
+- Never alter res/source.json info.version (the sync script bumps it automatically).
+
 Task:
-Determine whether the Mihon diff changes runtime behavior (API endpoints, CSS selectors, auth/headers, descrambling/crypto, URL structures, filters, etc.) that is NOT already handled by the Rust code.
+Determine whether the Mihon diff changes runtime behavior (API endpoints, CSS selectors, auth/headers, descrambling/crypto, URL structures, filters, embedded JS assets) that is NOT already handled cleanly by the current crate.
 - If the diff is only Kotlin refactoring, build.gradle tweaks already covered, or irrelevant Android UI boilerplate, respond with:
   { "needsUpdate": false, "summary": "brief reason", "files": {} }
-- Otherwise, respond with ONLY valid JSON containing the complete updated file contents for ONLY the files in src/ or res/ that need changes (never bump res/source.json version yourself — the script bumps it):
+- Otherwise, respond with ONLY valid JSON containing the complete updated file contents for ONLY the files in src/, res/, or assets/ that need changes (never include res/source.json):
   { "needsUpdate": true, "summary": "what changed", "files": { "src/lib.rs": "full updated file content" } }`;
 
 	const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-pro:generateContent?key=${encodeURIComponent(apiKey)}`;
@@ -243,7 +288,9 @@ Determine whether the Mihon diff changes runtime behavior (API endpoints, CSS se
 	try {
 		for (const [relPath, newContent] of Object.entries(parsed.files)) {
 			if (typeof newContent !== "string") continue;
-			if (!relPath.startsWith("src/") && !relPath.startsWith("res/")) continue;
+			if (!relPath.startsWith("src/") && !relPath.startsWith("res/") && !relPath.startsWith("assets/")) {
+				continue;
+			}
 			if (relPath === "res/source.json") continue;
 			const abs = path.join(crateDir, relPath);
 			backups.set(abs, fs.existsSync(abs) ? fs.readFileSync(abs, "utf8") : null);
@@ -256,7 +303,6 @@ Determine whether the Mihon diff changes runtime behavior (API endpoints, CSS se
 			return { applied: false, reason: "no-applicable-files" };
 		}
 
-		// Verify compilation with cargo / aidoku if available in environment
 		try {
 			execFileSync("cargo", ["check", "--target", "wasm32-unknown-unknown"], {
 				cwd: crateDir,
@@ -265,7 +311,6 @@ Determine whether the Mihon diff changes runtime behavior (API endpoints, CSS se
 			});
 		} catch (compileErr) {
 			if (compileErr?.code !== "ENOENT") {
-				// Revert Gemini patch if it breaks compilation
 				for (const [abs, prev] of backups.entries()) {
 					if (prev === null) fs.rmSync(abs, { force: true });
 					else fs.writeFileSync(abs, prev, "utf8");
@@ -308,17 +353,42 @@ async function main() {
 	const args = process.argv.slice(2);
 	const initCommits = args.includes("--init-commits");
 	const dryRun = args.includes("--dry-run");
+	const includeAll = args.includes("--all");
+	const idIdx = args.indexOf("--id");
+	const targetId = idIdx !== -1 ? args[idIdx + 1] : null;
 
 	if (!fs.existsSync(EXTENSIONS_FILE)) {
 		throw new Error("extensions.json not found");
 	}
 
 	const registry = readJson(EXTENSIONS_FILE);
+	const watchedSources = (registry.sources || []).filter((entry) => {
+		if (targetId) {
+			return entry.id.toLowerCase() === targetId.toLowerCase();
+		}
+		if (includeAll || initCommits) return true;
+		return entry.autoSync === true;
+	});
+
+	if (targetId && watchedSources.length === 0) {
+		throw new Error(`No extension found matching --id "${targetId}"`);
+	}
+
+	console.log(
+		`Checking ${watchedSources.length} of ${registry.sources.length} extension(s)` +
+			(dryRun ? " [dry-run]" : "") +
+			"..."
+	);
+
 	const mihonPaths = Array.from(
-		new Set(registry.sources.map((s) => s.mihonPath).filter(Boolean))
+		new Set(watchedSources.map((s) => s.mihonPath).filter(Boolean))
 	);
 	const aidokuPaths = Array.from(
-		new Set(registry.sources.map((s) => s.aidokuPath).filter(Boolean))
+		new Set(
+			watchedSources
+				.filter((s) => !s.customRust && s.aidokuPath)
+				.map((s) => s.aidokuPath)
+		)
 	);
 
 	const keiyoushiRepo = findOrCloneRepo(
@@ -341,9 +411,11 @@ async function main() {
 	let registryDirty = false;
 	const summaryLines = [];
 
-	for (const entry of registry.sources || []) {
+	for (const entry of watchedSources) {
 		const crateDir = path.join(ROOT_DIR, entry.aidokuPath);
-		const aidokuExists = fs.existsSync(path.join(aidokuRepo, "sources", entry.id, "Cargo.toml"));
+		const aidokuExists =
+			!entry.customRust &&
+			fs.existsSync(path.join(aidokuRepo, "sources", entry.id, "Cargo.toml"));
 
 		const latestMihon = entry.mihonPath
 			? getLatestCommitForPath(keiyoushiRepo, entry.mihonPath)
@@ -357,7 +429,7 @@ async function main() {
 				entry.lastMihonCommit = latestMihon;
 				registryDirty = true;
 			}
-			if (entry.lastAidokuCommit !== latestAidoku) {
+			if (latestAidoku && entry.lastAidokuCommit !== latestAidoku) {
 				entry.lastAidokuCommit = latestAidoku;
 				registryDirty = true;
 			}
@@ -394,16 +466,13 @@ async function main() {
 			continue;
 		}
 
-		// 1. Update MIHON_SOURCE.md
 		fs.writeFileSync(path.join(crateDir, "MIHON_SOURCE.md"), renderMihonDoc(info), "utf8");
 
-		// 2. Sync base URLs / mirrors
 		const urlUpdated = syncBaseUrls(crateDir, info);
 
-		// 3. Auto-port Kotlin changes via Gemini if any .kt files changed and API key is set
-		let aiResult = { applied: false, reason: "no-kt-diff" };
-		const hasKtChange = changedFiles.some((f) => f.endsWith(".kt"));
-		if (hasKtChange) {
+		let aiResult = { applied: false, reason: "no-kt-or-js-diff" };
+		const hasCodeChange = changedFiles.some((f) => f.endsWith(".kt") || f.endsWith(".js"));
+		if (hasCodeChange) {
 			const diffText = runGit(
 				["diff", entry.lastMihonCommit, latestMihon, "--", entry.mihonPath],
 				keiyoushiRepo
@@ -412,11 +481,10 @@ async function main() {
 			console.log(`  [ai] ${entry.id}: applied=${aiResult.applied} (${aiResult.summary || aiResult.reason})`);
 		}
 
-		// Bump package version if Rust/res code changed so Aidoku offers the update
 		if (urlUpdated || aiResult.applied) {
 			const newVer = bumpCrateVersion(crateDir, entry);
 			summaryLines.push(
-				`${entry.id} -> v${newVer} (${aiResult.applied ? aiResult.summary : "baseURL synced"})`
+				`${entry.id} -> v${newVer} (${aiResult.applied ? aiResult.summary : "URL/mirror synced"})`
 			);
 		} else {
 			summaryLines.push(
@@ -437,7 +505,7 @@ async function main() {
 	if (summaryLines.length > 0) {
 		console.log("Sync summary:\n - " + summaryLines.join("\n - "));
 	} else {
-		console.log(initCommits ? "Initialized upstream commit SHAs." : "All extensions are up to date.");
+		console.log(initCommits ? "Initialized upstream commit SHAs." : "All watched extensions are up to date.");
 	}
 }
 

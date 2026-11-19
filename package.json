@@ -1,0 +1,19 @@
+{
+	"name": "mlyn-aidoku-sources",
+	"private": true,
+	"type": "module",
+	"description": "CLI tools for porting and syncing curated Mihon extensions to Aidoku",
+	"scripts": {
+		"mhaid": "node scripts/mhaid.mjs",
+		"list": "node scripts/mhaid.mjs list",
+		"port": "node scripts/mhaid.mjs port",
+		"diff": "node scripts/mhaid.mjs diff",
+		"watch": "node scripts/mhaid.mjs watch",
+		"unwatch": "node scripts/mhaid.mjs unwatch",
+		"sync": "node scripts/mhaid.mjs sync",
+		"sync:dry": "node scripts/mhaid.mjs sync --dry-run",
+		"bump": "node scripts/mhaid.mjs bump",
+		"pull-pages": "node scripts/mhaid.mjs pull-pages",
+		"verify": "node scripts/build-repo.mjs --verify"
+	}
+}

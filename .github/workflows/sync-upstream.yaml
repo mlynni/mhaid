@@ -49,14 +49,19 @@ jobs:
       - name: Detect source or registry changes
         id: changes
         run: |
-          if [[ -n "$(git status --porcelain sources/ extensions.json)" ]]; then
-            echo "changed=true" >> "$GITHUB_OUTPUT"
+          if [[ -n "$(git status --porcelain sources/)" ]]; then
+            echo "sources_changed=true" >> "$GITHUB_OUTPUT"
           else
-            echo "changed=false" >> "$GITHUB_OUTPUT"
+            echo "sources_changed=false" >> "$GITHUB_OUTPUT"
+          fi
+          if [[ -n "$(git status --porcelain sources/ extensions.json)" ]]; then
+            echo "any_changed=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "any_changed=false" >> "$GITHUB_OUTPUT"
           fi
 
       - name: Build sources
-        if: steps.changes.outputs.changed == 'true'
+        if: steps.changes.outputs.sources_changed == 'true'
         run: |
           set -euo pipefail
 
@@ -72,7 +77,7 @@ jobs:
           done
 
       - name: Build & verify source list
-        if: steps.changes.outputs.changed == 'true'
+        if: steps.changes.outputs.sources_changed == 'true'
         run: |
           rm -f public/sources/*.aix public/icons/*.png
           aidoku build sources/*/package.aix --name "Mlyn Aidoku Sources"
@@ -80,7 +85,7 @@ jobs:
           node scripts/build-repo.mjs
 
       - name: Deploy to GitHub Pages
-        if: steps.changes.outputs.changed == 'true'
+        if: steps.changes.outputs.sources_changed == 'true'
         uses: JamesIves/github-pages-deploy-action@v4.7.2
         with:
           branch: gh-pages
@@ -91,7 +96,7 @@ jobs:
           single-commit: true
 
       - name: Commit & push synced sources to main
-        if: steps.changes.outputs.changed == 'true'
+        if: steps.changes.outputs.any_changed == 'true'
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"

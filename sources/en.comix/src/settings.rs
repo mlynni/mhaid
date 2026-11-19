@@ -6,6 +6,7 @@ use aidoku::{
 pub const DEFAULT_MIRROR: &str = "https://comix.to";
 pub const ALT_MIRROR: &str = "https://comix.ws";
 pub const VERIFY_KEY: &str = "verify";
+pub const VERIFY_WS_KEY: &str = "verifyWs";
 
 const MIRROR_KEY: &str = "mirror";
 const THUMBNAIL_QUALITY_KEY: &str = "thumbnailQuality";

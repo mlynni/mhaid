@@ -22,7 +22,7 @@ const HARVEST_BROWSE_JS: &str = include_str!("../assets/harvest_browse.js");
 const HARVEST_CHAPTERS_JS: &str = include_str!("../assets/harvest_chapters.js");
 const CHAPTER_PAGES_JS: &str = include_str!("../assets/chapter_pages.js");
 
-const WAF_ERROR_MSG: &str = "Comix requested a security check. Open Comix Settings → Open Site Check in WebView (or switch Mirror between comix.to and comix.ws).";
+const WAF_ERROR_MSG: &str = "Comix requested a security check. Open Comix Settings → Site Check (Verify comix.to / Verify comix.ws) or switch Mirror.";
 
 const READY_PROBE_JS: &str = "(() => JSON.stringify({ ready: document.readyState || 'loading', href: location.href || '', path: location.pathname || '', title: document.title || '', hasInitialData: !!document.querySelector('script#initial-data'), waf: (location.pathname || '').startsWith('/@waf/') || document.title === 'Security check' || document.title === 'Just a moment...' || !!document.querySelector('iframe[src*=\"/@waf/challenge\"]') }))()";
 

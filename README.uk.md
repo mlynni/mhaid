@@ -25,7 +25,7 @@ https://raw.githubusercontent.com/mlynni/mlyn-aidoku-sources/gh-pages/index.min.
 | Джерело | ID | Версія | Мови | Мін. Aidoku | Базовий URL | Примітки |
 |---|---|---:|---|---:|---|---|
 | Atsumaru | `en.atsumaru` | `v12` | `en` | `0.7.1` | https://atsu.moe | Пряме JSON API |
-| Comix | `en.comix` | `v31` | `en` | `0.8.4` | https://comix.to | Переписано з Mihon v64: WebView SPA-харвестери, вибір дзеркал (`comix.to` / `comix.ws`), дескремблер |
+| Comix | `en.comix` | `v32` | `en` | `0.8.4` | https://comix.to | Переписано з Mihon v64: WebView SPA-харвестери, вибір дзеркал (`comix.to` / `comix.ws`), дескремблер |
 | Kagane | `multi.kagane` | `v26` | 15 мов | `0.7.1` | https://kagane.moe | Манхва та манґа |
 | MANGA Plus | `multi.mangaplus` | `v6` | 9 мов | `0.7.2` | https://mangaplus.shueisha.co.jp | Офіційні релізи Shueisha |
 | Mangaball | `multi.mangaball` | `v14` | 34 мови (incl. `uk`) | `0.7.1` | https://mangaball.com | Мульти-CDN фолбек постерів і `.512.jpg` |
@@ -42,27 +42,35 @@ https://raw.githubusercontent.com/mlynni/mlyn-aidoku-sources/gh-pages/index.min.
 | Toonily | `en.toonily` | `v10` | `en` | `0.7.1` | https://toonily.com | Шаблон `madara` (18+) |
 | Weeb Central | `en.weebcentral` | `v9` | `en` | `0.7.1` | https://weebcentral.com | Пошук і фільтри |
 
-> **Примітка для Comix:** джерело переписано з нуля за архітектурою Mihon без реверс-інжинірингу API-підписів, тому воно не скидає верифікацію кожні кілька хвилин. У **Comix → Settings → Mirror** можна перемикатись між `https://comix.to` та `https://comix.ws`; пункт **Open Site Check in WebView** потрібен лише якщо сайт сам запросив перевірку.
+> **Примітка для Comix:** джерело переписано з нуля за архітектурою Mihon без реверс-інжинірингу API-підписів, тому воно не скидає верифікацію кожні кілька хвилин. У **Comix → Settings → Mirror** можна перемикатись між `https://comix.to` та `https://comix.ws`; пункт **Site Check** (`Verify comix.to` / `Verify comix.ws`) потрібен лише якщо сайт сам запросив перевірку.
 
 ## Підтримка та автоматизація
 
-Автоматичний воркфлоу ([`.github/workflows/sync-upstream.yaml`](.github/workflows/sync-upstream.yaml)) кожні 12 годин перевіряє апстрім-коміти через [`scripts/sync-upstream.mjs`](scripts/sync-upstream.mjs), оновлює метадані й Rust-код, компілює `.aix` через `aidoku package`, перевіряє цілісність ([`scripts/build-repo.mjs`](scripts/build-repo.mjs)) та деплоїть у `gh-pages`.
+Автоматичний воркфлоу ([`.github/workflows/sync-upstream.yaml`](.github/workflows/sync-upstream.yaml)) кожні 12 годин перевіряє апстрім-коміти Mihon виключно для 8 відстежуваних екстеншенів (`autoSync: true` у [`extensions.json`](extensions.json): Weeb Central, MangaFire, MangaDex, Comix, MangaDotNet, Atsumaru, Mangaball та Mangago) через [`scripts/sync-upstream.mjs`](scripts/sync-upstream.mjs), оновлює метадані й Rust-код, компілює `.aix` через `aidoku package`, перевіряє схеми й сумісність ([`scripts/build-repo.mjs`](scripts/build-repo.mjs)) та деплоїть у `gh-pages`.
 
 ```bash
-# Список активних джерел і зафіксованих комітів
-node scripts/mihon-to-aidoku.mjs --list
+# Список джерел та статус автовідстеження
+node scripts/mhaid.mjs list
 
-# Додати нове джерело з keiyoushi/extensions-source
-node scripts/mihon-to-aidoku.mjs <extension-name>
+# Портувати або створити заготовку з Mihon (+ .cache/briefs/<id>.md)
+node scripts/mhaid.mjs port <extension-name> [--lang <code>] [--watch] [--community]
 
-# Суха перевірка змін апстріму
-node scripts/sync-upstream.mjs --dry-run
+# Подивитися зміни апстріму Mihon з моменту останнього коміту
+node scripts/mhaid.mjs diff <id-or-name>
 
-# Валідація індексу та .aix пакетів
-node scripts/build-repo.mjs --verify
+# Керувати списком автовідстеження
+node scripts/mhaid.mjs watch <id...>
+node scripts/mhaid.mjs unwatch <id...>
+
+# Суха перевірка або запуск синку відстежуваних джерел
+node scripts/mhaid.mjs sync --dry-run
+
+# Забрати зібрані пакети з gh-pages та перевірити індекс, схеми й .aix архіви
+node scripts/mhaid.mjs pull-pages
+node scripts/mhaid.mjs verify
 ```
 
-Щоб увімкнути ШІ-адаптацію складних змін Kotlin → Rust у GitHub Actions, додайте секрет **`GEMINI_API_KEY`** у **Settings → Secrets and variables → Actions**.
+Щоб увімкнути ШІ-адаптацію складних змін Kotlin/JS → Rust у GitHub Actions, додайте секрет **`GEMINI_API_KEY`** у **Settings → Secrets and variables → Actions**.
 
 ## Подяки
 

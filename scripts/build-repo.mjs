@@ -14,6 +14,176 @@ const EXTENSIONS_FILE = path.join(ROOT_DIR, "extensions.json");
 const PNG_MAGIC = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
 const WASM_MAGIC = Buffer.from([0x00, 0x61, 0x73, 0x6d]);
 
+const VALID_SETTING_TYPES = new Set([
+	"group",
+	"select",
+	"multi-select",
+	"switch",
+	"stepper",
+	"segment",
+	"text",
+	"button",
+	"link",
+	"login",
+	"page",
+	"editable-list",
+	"picker",
+	"custom",
+]);
+const SETTINGS_OPTIONAL_KEY_TYPES = new Set(["group", "button", "link", "page"]);
+const WEBVIEW_090_ONLY_RE =
+	/\.(eval_async|add_user_script|set_rule_list|get_cookies|delete_cookie|delete_all_cookies)\s*\(/;
+
+function isVersionBelow090(ver) {
+	if (!ver || typeof ver !== "string") return true;
+	const parts = ver
+		.replace(/^v/i, "")
+		.split(".")
+		.map((n) => Number.parseInt(n, 10) || 0);
+	const [maj = 0, min = 0] = parts;
+	return maj === 0 && min < 9;
+}
+
+function validateSettingItems(items, relPath, errors) {
+	for (const item of items) {
+		if (!item || typeof item !== "object") {
+			errors.push(`${relPath}: setting item must be an object`);
+			continue;
+		}
+		if (!VALID_SETTING_TYPES.has(item.type)) {
+			errors.push(`${relPath}: invalid setting type "${item.type}"`);
+		}
+		if (!SETTINGS_OPTIONAL_KEY_TYPES.has(item.type) && !String(item.key || "").trim()) {
+			errors.push(`${relPath}: setting type "${item.type}" requires a non-empty "key"`);
+		}
+		if (
+			Array.isArray(item.values) &&
+			Array.isArray(item.titles) &&
+			item.values.length !== item.titles.length
+		) {
+			errors.push(
+				`${relPath}: setting "${item.key || item.title}" has values (${item.values.length}) != titles (${item.titles.length})`
+			);
+		}
+		if (item.type === "login") {
+			if (!["basic", "oauth", "web"].includes(item.method)) {
+				errors.push(`${relPath}: login setting "${item.key}" has invalid method "${item.method}"`);
+			} else if (item.method === "web" && !String(item.url || "").trim()) {
+				errors.push(`${relPath}: web login setting "${item.key}" requires "url"`);
+			} else if (
+				item.method === "oauth" &&
+				!String(item.url || "").trim() &&
+				!String(item.urlKey || "").trim()
+			) {
+				errors.push(`${relPath}: oauth login setting "${item.key}" requires "url" or "urlKey"`);
+			}
+		}
+		if (Array.isArray(item.items)) {
+			validateSettingItems(item.items, relPath, errors);
+		}
+	}
+}
+
+function validateFilterItems(items, relPath, errors) {
+	for (const item of items) {
+		if (!item || typeof item !== "object") {
+			errors.push(`${relPath}: filter item must be an object`);
+			continue;
+		}
+		if (
+			Array.isArray(item.options) &&
+			Array.isArray(item.ids) &&
+			item.options.length !== item.ids.length
+		) {
+			errors.push(
+				`${relPath}: filter "${item.id || item.title}" has options (${item.options.length}) != ids (${item.ids.length})`
+			);
+		}
+		if (Array.isArray(item.filters)) {
+			validateFilterItems(item.filters, relPath, errors);
+		}
+	}
+}
+
+function collectRsFiles(dir) {
+	const out = [];
+	if (!fs.existsSync(dir)) return out;
+	for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+		const full = path.join(dir, entry.name);
+		if (entry.isDirectory()) out.push(...collectRsFiles(full));
+		else if (entry.name.endsWith(".rs")) out.push(full);
+	}
+	return out;
+}
+
+function verifySourcesCompatibility(errors) {
+	if (!fs.existsSync(SOURCES_DIR)) return;
+	const dirs = fs
+		.readdirSync(SOURCES_DIR, { withFileTypes: true })
+		.filter((d) => d.isDirectory())
+		.map((d) => d.name)
+		.sort();
+
+	for (const dirName of dirs) {
+		const crateDir = path.join(SOURCES_DIR, dirName);
+		const sourceJsonPath = path.join(crateDir, "res", "source.json");
+		if (!fs.existsSync(sourceJsonPath)) continue;
+
+		let manifest;
+		try {
+			manifest = readJson(sourceJsonPath);
+		} catch (err) {
+			errors.push(`sources/${dirName}/res/source.json: invalid JSON (${err.message})`);
+			continue;
+		}
+
+		const info = manifest.info || {};
+		const settingsPath = path.join(crateDir, "res", "settings.json");
+		if (fs.existsSync(settingsPath)) {
+			try {
+				const parsed = readJson(settingsPath);
+				if (!Array.isArray(parsed)) {
+					errors.push(`sources/${dirName}/res/settings.json: root must be a JSON array`);
+				} else {
+					validateSettingItems(parsed, `sources/${dirName}/res/settings.json`, errors);
+				}
+			} catch (err) {
+				errors.push(`sources/${dirName}/res/settings.json: invalid JSON (${err.message})`);
+			}
+		}
+
+		const filtersPath = path.join(crateDir, "res", "filters.json");
+		if (fs.existsSync(filtersPath)) {
+			try {
+				const parsed = readJson(filtersPath);
+				if (!Array.isArray(parsed)) {
+					errors.push(`sources/${dirName}/res/filters.json: root must be a JSON array`);
+				} else {
+					validateFilterItems(parsed, `sources/${dirName}/res/filters.json`, errors);
+				}
+			} catch (err) {
+				errors.push(`sources/${dirName}/res/filters.json: invalid JSON (${err.message})`);
+			}
+		}
+
+		if (isVersionBelow090(info.minAppVersion)) {
+			const rsFiles = collectRsFiles(path.join(crateDir, "src"));
+			const combined = rsFiles.map((f) => fs.readFileSync(f, "utf8")).join("\n");
+			if (/\bDynamicSettings\b/.test(combined) && /\bLoginSetting\b/.test(combined)) {
+				errors.push(
+					`sources/${dirName}: DynamicSettings + LoginSetting breaks Postcard decoding on Aidoku < 0.9.0 (minAppVersion=${info.minAppVersion || "unset"}); move LoginSetting into static res/settings.json`
+				);
+			}
+			const wvMatch = combined.match(WEBVIEW_090_ONLY_RE);
+			if (wvMatch) {
+				errors.push(
+					`sources/${dirName}: calls Aidoku 0.9.0-only WebView method "${wvMatch[1]}()" while minAppVersion=${info.minAppVersion || "unset"}`
+				);
+			}
+		}
+	}
+}
+
 /**
  * Minimal cross-platform ZIP reader using Node built-in zlib.
  * Reads Central Directory entries and extracts requested entry buffers.
@@ -313,6 +483,8 @@ function verifyRepo() {
 			}
 		}
 	}
+
+	verifySourcesCompatibility(errors);
 
 	if (errors.length > 0) {
 		console.error("Verification failed:\n - " + errors.join("\n - "));

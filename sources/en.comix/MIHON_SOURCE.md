@@ -3,7 +3,7 @@
 - **Mihon Path:** `src/en/comix`
 - **Mihon Upstream Commit:** `9c66c1f7b6774c03ee04ec386e4c9dd88949c660` (v64)
 - **Aidoku ID:** `en.comix`
-- **Aidoku Version:** `31` (`minAppVersion: "0.8.4"`)
+- **Aidoku Version:** `32` (`minAppVersion: "0.8.4"`)
 - **Mirrors:** `https://comix.to`, `https://comix.ws` (configurable via Settings → Mirror)
 - **Languages (1):** `en`
 - **Content Rating:** Contains NSFW / Mixed (`1`)

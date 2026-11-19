@@ -1,11 +1,10 @@
 #![no_std]
 use aidoku::{
-	BaseUrlProvider, Chapter, CoverImageProcessor, DeepLinkHandler, DeepLinkResult,
-	DynamicSettings, FilterValue, GroupSetting, HashMap, Home, HomeComponent, HomeComponentValue,
-	HomeLayout, HomePartialResult, ImageRequestProvider, ImageResponse, Link, LinkValue, Listing,
-	ListingProvider, LoginMethod, LoginSetting, Manga, MangaPageResult, MangaWithChapter,
-	NotificationHandler, Page, PageContent, PageContext, PageImageProcessor, Result, Setting,
-	Source, WebLoginHandler,
+	BaseUrlProvider, Chapter, CoverImageProcessor, DeepLinkHandler, DeepLinkResult, FilterValue,
+	HashMap, Home, HomeComponent, HomeComponentValue, HomeLayout, HomePartialResult,
+	ImageRequestProvider, ImageResponse, Link, LinkValue, Listing, ListingProvider, Manga,
+	MangaPageResult, MangaWithChapter, NotificationHandler, Page, PageContent, PageContext,
+	PageImageProcessor, Result, Source, WebLoginHandler,
 	alloc::{String, Vec, string::ToString, vec},
 	helpers::uri::QueryParameters,
 	imports::{
@@ -24,7 +23,7 @@ mod settings;
 mod web;
 
 use models::*;
-use settings::VERIFY_KEY;
+use settings::{VERIFY_KEY, VERIFY_WS_KEY};
 
 struct Comix;
 
@@ -745,36 +744,6 @@ impl BaseUrlProvider for Comix {
 	}
 }
 
-impl DynamicSettings for Comix {
-	fn get_dynamic_settings(&self) -> Result<Vec<Setting>> {
-		let base_url = settings::base_url();
-		Ok(vec![
-			GroupSetting {
-				key: "siteCheckGroup".into(),
-				title: "Site Check".into(),
-				footer: Some(
-					format!("Active mirror: {base_url}. Open Site Check only if Comix asks for verification.").into(),
-				),
-				items: vec![
-					LoginSetting {
-						key: VERIFY_KEY.into(),
-						title: "Open Site Check in WebView".into(),
-						method: LoginMethod::Web,
-						url: Some(format!("{base_url}/@waf/challenge?return=/").into()),
-						logout_title: Some("Clear WebView Session".into()),
-						clear_cookies_on_log_out: true,
-						refreshes: Some(vec!["content".into(), "listings".into()]),
-						..Default::default()
-					}
-					.into(),
-				],
-				..Default::default()
-			}
-			.into(),
-		])
-	}
-}
-
 impl NotificationHandler for Comix {
 	fn handle_notification(&self, notification: String) {
 		if notification == "resetFilters" {
@@ -824,7 +793,7 @@ impl DeepLinkHandler for Comix {
 
 impl WebLoginHandler for Comix {
 	fn handle_web_login(&self, key: String, cookies: HashMap<String, String>) -> Result<bool> {
-		if key == VERIFY_KEY {
+		if key == VERIFY_KEY || key == VERIFY_WS_KEY {
 			if let Some(pass) = cookies.get("waf_pass")
 				&& !pass.trim().is_empty()
 			{
@@ -841,7 +810,6 @@ register_source!(
 	Home,
 	ListingProvider,
 	BaseUrlProvider,
-	DynamicSettings,
 	ImageRequestProvider,
 	CoverImageProcessor,
 	PageImageProcessor,

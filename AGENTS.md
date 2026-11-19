@@ -7,18 +7,24 @@ This repository ports Mihon (`keiyoushi/extensions-source`) extensions to Aidoku
 - Keep `extensions.json` up to date whenever adding, updating, or removing a source.
 - Every `.aix` archive in `public/sources/` is a ZIP containing `Payload/main.wasm`, `Payload/source.json`, `Payload/icon.png`, `Payload/filters.json`, and optional `Payload/settings.json`.
 
-## Adding a New Extension from Mihon
+## Adding or Updating an Extension from Mihon
+Use the unified CLI (`node scripts/mhaid.mjs` or `npm run ...`):
 1. Run:
    ```bash
-   node scripts/mihon-to-aidoku.mjs <mihon-folder-name> [--lang <lang>]
+   node scripts/mhaid.mjs port <mihon-folder-name> [--lang <lang>] [--watch] [--community]
    ```
-   - Inspect `sources/<id>/MIHON_SOURCE.md` for all extracted Mihon Kotlin endpoints, CSS selectors, filters, and custom headers.
-   - If the source was scaffolded (`status: "scaffold"` in `extensions.json`), complete `sources/<id>/src/lib.rs`, `res/filters.json`, and `res/source.json` using `MIHON_SOURCE.md` and the `aidoku` v0.3.0 / `aidoku-rs` API, then set `"status": "ready"` in `extensions.json`.
-   - If the source was imported with a prebuilt `.aix`, run `node scripts/build-repo.mjs --verify` right away.
-2. Commit and push to `main`. GitHub Actions (`.github/workflows/build.yaml`) will compile all `sources/*/Cargo.toml` crates via `aidoku package`, rebuild `public/index.min.json` via `aidoku build`, verify with `node scripts/build-repo.mjs --verify`, and push the output to the `gh-pages` branch.
+   - Inspect `sources/<id>/MIHON_SOURCE.md` and `.cache/briefs/<id>.md` for extracted Mihon Kotlin/JS code and Aidoku 0.8.4 compatibility rules.
+   - Other useful commands: `list`, `diff <id>`, `watch <id...>`, `unwatch <id...>`, `sync [--dry-run] [--id <id>] [--all]`, `bump <id>`, `pull-pages`, `verify`.
+   - Automated CI sync (`.github/workflows/sync-upstream.yaml`) only checks extensions marked `"autoSync": true` in `extensions.json`.
+   - For `minAppVersion < 0.9.0`, never combine `DynamicSettings` with `LoginSetting` (Postcard ABI breaks Settings on Aidoku 0.8.4; declare `login` settings in static `res/settings.json`), and avoid 0.9.0-only `WebView` methods (`eval_async`, `add_user_script`, `set_rule_list`).
+2. Commit and push to `main`. GitHub Actions (`.github/workflows/build.yaml`) will compile all `sources/*/Cargo.toml` crates via `aidoku package`, rebuild `public/index.min.json` via `aidoku build`, verify with `node scripts/build-repo.mjs --verify`, and push the output to `gh-pages`.
+3. Pull the built artifacts back into `main`:
+   ```bash
+   node scripts/mhaid.mjs pull-pages
+   ```
 
 ## Verification
-Always validate manifest and `.aix` package integrity before pushing:
+Always validate manifest, settings/filters schemas, 0.8.4 compatibility, and `.aix` package integrity before pushing:
 ```bash
-node scripts/build-repo.mjs --verify
+node scripts/mhaid.mjs verify
 ```
