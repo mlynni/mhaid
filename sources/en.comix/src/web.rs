@@ -48,19 +48,34 @@ struct PollState {
 	result: Option<serde_json::Value>,
 }
 
-fn wait_webview_ready(wv: &WebView, timeout_secs: i32, wait_for_initial_data: bool) -> Result<()> {
+/// How long to let a security check resolve on its own before giving up.
+/// The Turnstile widget on `/@waf/challenge` usually passes automatically in a real
+/// WebView and then redirects, so we wait for that instead of failing immediately.
+const WAF_AUTO_PASS_SECS: i32 = 25;
+
+enum Ready {
+	Page,
+	Waf,
+}
+
+enum Polled<T> {
+	Done(T),
+	Waf,
+}
+
+fn wait_webview_ready(wv: &WebView, timeout_secs: i32, wait_for_initial_data: bool) -> Result<Ready> {
 	for _ in 0..timeout_secs {
 		if let Ok(raw) = wv.eval(READY_PROBE_JS)
 			&& let Ok(probe) = serde_json::from_str::<ReadyProbe>(&raw)
 		{
 			if probe.waf {
-				bail!("{WAF_ERROR_MSG}");
+				return Ok(Ready::Waf);
 			}
 			let loaded = !probe.href.is_empty()
 				&& probe.href != "about:blank"
 				&& probe.ready != "loading";
 			if loaded && (!wait_for_initial_data || probe.has_initial_data || probe.ready == "complete") {
-				return Ok(());
+				return Ok(Ready::Page);
 			}
 		}
 		sleep(1);
@@ -68,13 +83,50 @@ fn wait_webview_ready(wv: &WebView, timeout_secs: i32, wait_for_initial_data: bo
 	bail!("Timed out waiting for Comix WebView to load")
 }
 
-fn poll_webview_result<T: DeserializeOwned>(wv: &WebView, max_secs: i32) -> Result<T> {
+/// Waits for the security check to clear, then reloads `url` and waits for the real page.
+/// Fails with `WAF_ERROR_MSG` if the check needs manual interaction or never clears.
+fn recover_from_waf(wv: &WebView, url: &str, wait_for_initial_data: bool) -> Result<()> {
+	let mut cleared = false;
+	for _ in 0..WAF_AUTO_PASS_SECS {
+		sleep(1);
+		if let Ok(raw) = wv.eval(READY_PROBE_JS)
+			&& let Ok(probe) = serde_json::from_str::<ReadyProbe>(&raw)
+			&& !probe.waf
+			&& probe.ready != "loading"
+		{
+			cleared = true;
+			break;
+		}
+	}
+	if !cleared {
+		bail!("{WAF_ERROR_MSG}");
+	}
+	// The check may redirect to `/` instead of the page we wanted, so load it again.
+	wv.load(Request::get(url)?)?;
+	match wait_webview_ready(wv, 20, wait_for_initial_data)? {
+		Ready::Page => Ok(()),
+		Ready::Waf => bail!("{WAF_ERROR_MSG}"),
+	}
+}
+
+/// Opens `url` in a fresh WebView, recovering from a security check when possible.
+fn open_page(url: &str, wait_for_initial_data: bool) -> Result<WebView> {
+	let wv = WebView::new();
+	wv.load(Request::get(url)?)?;
+	match wait_webview_ready(&wv, 20, wait_for_initial_data)? {
+		Ready::Page => {}
+		Ready::Waf => recover_from_waf(&wv, url, wait_for_initial_data)?,
+	}
+	Ok(wv)
+}
+
+fn poll_webview_result<T: DeserializeOwned>(wv: &WebView, max_secs: i32) -> Result<Polled<T>> {
 	for _ in 0..max_secs {
 		if let Ok(raw) = wv.eval(POLL_RESULT_JS)
 			&& let Ok(state) = serde_json::from_str::<PollState>(&raw)
 		{
 			if state.waf {
-				bail!("{WAF_ERROR_MSG}");
+				return Ok(Polled::Waf);
 			}
 			if let Some(err) = state.error {
 				bail!("Comix error: {err}");
@@ -83,12 +135,33 @@ fn poll_webview_result<T: DeserializeOwned>(wv: &WebView, max_secs: i32) -> Resu
 				&& let Some(val) = state.result
 			{
 				return serde_json::from_value::<T>(val)
+					.map(Polled::Done)
 					.map_err(|e| error!("Failed to parse Comix WebView result: {e}"));
 			}
 		}
 		sleep(1);
 	}
 	bail!("Timed out waiting for Comix page data")
+}
+
+/// Runs a harvest script and polls for its result. If a security check shows up mid-run,
+/// waits for it to clear, reloads the page, and runs the script once more.
+fn run_script<T: DeserializeOwned>(
+	wv: &WebView,
+	url: &str,
+	script: &str,
+	start_error: &str,
+	max_secs: i32,
+) -> Result<T> {
+	for attempt in 0..2 {
+		wv.eval(script).map_err(|_| error!("{start_error}"))?;
+		match poll_webview_result::<T>(wv, max_secs)? {
+			Polled::Done(value) => return Ok(value),
+			Polled::Waf if attempt == 0 => recover_from_waf(wv, url, false)?,
+			Polled::Waf => break,
+		}
+	}
+	bail!("{WAF_ERROR_MSG}")
 }
 
 /// Fetches SSR `script#initial-data` via HTTP first, falling back to WebView if challenged.
@@ -105,9 +178,7 @@ pub fn fetch_initial_data(url: &str) -> Result<InitialData> {
 		return Ok(parsed);
 	}
 
-	let wv = WebView::new();
-	wv.load(Request::get(url)?)?;
-	wait_webview_ready(&wv, 20, true)?;
+	let wv = open_page(url, true)?;
 	let raw = wv
 		.eval(READ_INITIAL_DATA_JS)
 		.map_err(|_| error!("Failed to read initial-data from WebView"))?;
@@ -159,12 +230,8 @@ pub fn fetch_tag_ids(base_url: &str, term_type: &str, raw_csv: &str) -> Vec<Stri
 }
 
 pub fn harvest_browse(url: &str) -> Result<BrowseHarvestResult> {
-	let wv = WebView::new();
-	wv.load(Request::get(url)?)?;
-	wait_webview_ready(&wv, 20, false)?;
-	wv.eval(HARVEST_BROWSE_JS)
-		.map_err(|_| error!("Failed to start Comix browse script"))?;
-	poll_webview_result(&wv, 35)
+	let wv = open_page(url, false)?;
+	run_script(&wv, url, HARVEST_BROWSE_JS, "Failed to start Comix browse script", 35)
 }
 
 pub fn harvest_title_page<F>(
@@ -185,9 +252,7 @@ where
 		return Ok((None, None));
 	}
 
-	let wv = WebView::new();
-	wv.load(Request::get(url)?)?;
-	wait_webview_ready(&wv, 20, needs_details)?;
+	let wv = open_page(url, needs_details)?;
 
 	let details = if needs_details {
 		let raw = wv.eval(READ_INITIAL_DATA_JS).unwrap_or_default();
@@ -200,17 +265,17 @@ where
 		None
 	};
 
-	wv.eval(HARVEST_CHAPTERS_JS)
-		.map_err(|_| error!("Failed to start Comix chapter script"))?;
-	let chapters: ChaptersHarvestResult = poll_webview_result(&wv, 90)?;
+	let chapters: ChaptersHarvestResult = run_script(
+		&wv,
+		url,
+		HARVEST_CHAPTERS_JS,
+		"Failed to start Comix chapter script",
+		90,
+	)?;
 	Ok((details, Some(chapters)))
 }
 
 pub fn harvest_chapter_pages(url: &str) -> Result<PagesHarvestResult> {
-	let wv = WebView::new();
-	wv.load(Request::get(url)?)?;
-	wait_webview_ready(&wv, 20, false)?;
-	wv.eval(CHAPTER_PAGES_JS)
-		.map_err(|_| error!("Failed to start Comix reader script"))?;
-	poll_webview_result(&wv, 90)
+	let wv = open_page(url, false)?;
+	run_script(&wv, url, CHAPTER_PAGES_JS, "Failed to start Comix reader script", 90)
 }

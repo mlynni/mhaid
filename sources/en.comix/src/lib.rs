@@ -794,12 +794,14 @@ impl DeepLinkHandler for Comix {
 impl WebLoginHandler for Comix {
 	fn handle_web_login(&self, key: String, cookies: HashMap<String, String>) -> Result<bool> {
 		if key == VERIFY_KEY || key == VERIFY_WS_KEY {
-			if let Some(pass) = cookies.get("waf_pass")
-				&& !pass.trim().is_empty()
-			{
-				return Ok(true);
-			}
-			return Ok(false);
+			// The pass cookie is named `waf_pass`; accept any WAF/Cloudflare clearance cookie
+			// so the check can't get stuck if the site renames it.
+			let passed = cookies.iter().any(|(name, value)| {
+				let name = name.to_ascii_lowercase();
+				!value.trim().is_empty()
+					&& (name.contains("waf") || name == "cf_clearance")
+			});
+			return Ok(passed);
 		}
 		Ok(false)
 	}
