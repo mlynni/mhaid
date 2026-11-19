@@ -27,15 +27,15 @@
 			"name": "Comix",
 			"mihonPath": "src/en/comix",
 			"aidokuPath": "sources/en.comix",
-			"version": 30,
+			"version": 31,
 			"languages": [
 				"en"
 			],
 			"contentRating": 1,
 			"baseURL": "https://comix.to",
 			"minAppVersion": "0.8.4",
-			"packageFile": "en.comix-v30.aix",
-			"iconFile": "en.comix-v30.png",
+			"packageFile": "en.comix-v31.aix",
+			"iconFile": "en.comix-v31.png",
 			"status": "ready",
 			"lastMihonCommit": "9c66c1f7b6774c03ee04ec386e4c9dd88949c660",
 			"lastAidokuCommit": "bef3b479995b5b08b4759fdc1acca4d2c679014a"

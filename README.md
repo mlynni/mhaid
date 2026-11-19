@@ -25,7 +25,7 @@ https://raw.githubusercontent.com/mlynni/mlyn-aidoku-sources/gh-pages/index.min.
 | Source | ID | Version | Languages | Min. Aidoku | Base URL | Notes |
 |---|---|---:|---|---:|---|---|
 | Atsumaru | `en.atsumaru` | `v12` | `en` | `0.7.1` | https://atsu.moe | Direct JSON API |
-| Comix | `en.comix` | `v30` | `en` | `0.8.4` | https://comix.to | Auto-persists `waf_pass`, background `@waf/challenge` renewal, and WebView fallback (`Settings → Connection`) |
+| Comix | `en.comix` | `v31` | `en` | `0.8.4` | https://comix.to | Rewritten from Mihon v64: WebView SPA harvesters, mirror switcher (`comix.to` / `comix.ws`), descrambler |
 | Kagane | `multi.kagane` | `v26` | 15 languages | `0.7.1` | https://kagane.moe | Multi-language manhwa & manga |
 | MANGA Plus | `multi.mangaplus` | `v6` | 9 languages | `0.7.2` | https://mangaplus.shueisha.co.jp | Official Shueisha releases |
 | Mangaball | `multi.mangaball` | `v14` | 34 languages (incl. `uk`) | `0.7.1` | https://mangaball.com | Multi-CDN poster fallback & `.512.jpg` cover optimization |
@@ -42,7 +42,7 @@ https://raw.githubusercontent.com/mlynni/mlyn-aidoku-sources/gh-pages/index.min.
 | Toonily | `en.toonily` | `v10` | `en` | `0.7.1` | https://toonily.com | `madara` template (18+) |
 | Weeb Central | `en.weebcentral` | `v9` | `en` | `0.7.1` | https://weebcentral.com | Full catalog & filters |
 
-> **Comix note:** If Comix challenges a session, open **Browse → Comix → Settings → Verify Comix Captcha** once. The source sends the site's tap flag (`v=0`), automatically saves rolling `waf_pass` cookies, retries background verification, and falls back to WebView (`Connection → Automatic`) when native requests are blocked.
+> **Comix note:** Rewritten from Mihon's WebView architecture without reverse-engineered API signing, avoiding frequent verification drops. You can switch between `https://comix.to` and `https://comix.ws` in **Comix → Settings → Mirror**; use **Open Site Check in WebView** only if Comix explicitly asks for verification.
 
 ## Maintenance & CLI
 

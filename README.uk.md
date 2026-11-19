@@ -25,7 +25,7 @@ https://raw.githubusercontent.com/mlynni/mlyn-aidoku-sources/gh-pages/index.min.
 | Джерело | ID | Версія | Мови | Мін. Aidoku | Базовий URL | Примітки |
 |---|---|---:|---|---:|---|---|
 | Atsumaru | `en.atsumaru` | `v12` | `en` | `0.7.1` | https://atsu.moe | Пряме JSON API |
-| Comix | `en.comix` | `v30` | `en` | `0.8.4` | https://comix.to | Збереження ротацій `waf_pass`, фонове оновлення `@waf/challenge` і WebView-фолбек (`Settings → Connection`) |
+| Comix | `en.comix` | `v31` | `en` | `0.8.4` | https://comix.to | Переписано з Mihon v64: WebView SPA-харвестери, вибір дзеркал (`comix.to` / `comix.ws`), дескремблер |
 | Kagane | `multi.kagane` | `v26` | 15 мов | `0.7.1` | https://kagane.moe | Манхва та манґа |
 | MANGA Plus | `multi.mangaplus` | `v6` | 9 мов | `0.7.2` | https://mangaplus.shueisha.co.jp | Офіційні релізи Shueisha |
 | Mangaball | `multi.mangaball` | `v14` | 34 мови (incl. `uk`) | `0.7.1` | https://mangaball.com | Мульти-CDN фолбек постерів і `.512.jpg` |
@@ -42,7 +42,7 @@ https://raw.githubusercontent.com/mlynni/mlyn-aidoku-sources/gh-pages/index.min.
 | Toonily | `en.toonily` | `v10` | `en` | `0.7.1` | https://toonily.com | Шаблон `madara` (18+) |
 | Weeb Central | `en.weebcentral` | `v9` | `en` | `0.7.1` | https://weebcentral.com | Пошук і фільтри |
 
-> **Примітка для Comix:** якщо сайт запросив перевірку, відкрийте в додатку **Browse → Comix → Settings → Verify Comix Captcha**. Екстеншен додає прапор запиту `v=0`, автоматично зберігає оновлені `waf_pass` куки, пробує фонове оновлення перевірки та за потреби перемикається на WebView (`Connection → Automatic`).
+> **Примітка для Comix:** джерело переписано з нуля за архітектурою Mihon без реверс-інжинірингу API-підписів, тому воно не скидає верифікацію кожні кілька хвилин. У **Comix → Settings → Mirror** можна перемикатись між `https://comix.to` та `https://comix.ws`; пункт **Open Site Check in WebView** потрібен лише якщо сайт сам запросив перевірку.
 
 ## Підтримка та автоматизація
 

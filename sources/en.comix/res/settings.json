@@ -1,24 +1,54 @@
 [
 	{
 		"type": "group",
-		"title": "SETTINGS",
+		"title": "Mirror",
+		"items": [
+			{
+				"type": "select",
+				"key": "mirror",
+				"title": "Mirror",
+				"values": ["https://comix.to", "https://comix.ws"],
+				"titles": ["comix.to", "comix.ws"],
+				"default": "https://comix.to",
+				"refreshes": ["content", "listings", "settings"]
+			}
+		],
+		"footer": "Switch between comix.to and comix.ws mirrors. If one mirror asks for a check or is slow, try switching mirrors."
+	},
+	{
+		"type": "group",
+		"title": "General",
 		"items": [
 			{
 				"type": "select",
 				"key": "thumbnailQuality",
 				"title": "Thumbnail Quality",
-				"values": ["medium", "large"],
-				"titles": ["Medium", "Large"],
+				"values": ["small", "medium", "large"],
+				"titles": ["Small", "Medium", "Large"],
 				"default": "large",
 				"refreshes": ["content"]
 			},
 			{
-				"type": "switch",
-				"key": "hideNSFW",
-				"title": "Hide NSFW Content",
-				"default": true,
+				"type": "select",
+				"key": "contentRating",
+				"title": "Content Rating",
+				"values": ["", "safe", "suggestive", "erotica", "pornographic"],
+				"titles": [
+					"Show all",
+					"Safe only",
+					"Up to Suggestive",
+					"Up to Erotica",
+					"Up to Pornographic"
+				],
+				"default": "suggestive",
 				"refreshes": ["content"]
-			},
+			}
+		]
+	},
+	{
+		"type": "group",
+		"title": "Chapters",
+		"items": [
 			{
 				"type": "switch",
 				"key": "dedupedChapter",
@@ -33,12 +63,28 @@
 				"placeholder": "Group names or IDs (e.g. Violet Scans, 307)",
 				"default": "",
 				"refreshes": ["content"]
+			}
+		],
+		"footer": "Official chapters are preferred when deduplicating, followed by highest-voted or newest upload."
+	},
+	{
+		"type": "group",
+		"title": "Display",
+		"items": [
+			{
+				"type": "select",
+				"key": "scorePosition",
+				"title": "Score Display Position",
+				"values": ["top", "bottom", "none"],
+				"titles": ["Top of description", "Bottom of description", "Do not show"],
+				"default": "top",
+				"refreshes": ["content"]
 			},
 			{
 				"type": "switch",
 				"key": "showExtraInfo",
 				"title": "Show Extra Info in Description",
-				"subtitle": "Append score, year, rank, followers, and tracker links",
+				"subtitle": "Year, rank, followers, and tracker links",
 				"default": true,
 				"refreshes": ["content"]
 			},
@@ -48,43 +94,50 @@
 				"title": "Show Alternative Names in Description",
 				"default": false,
 				"refreshes": ["content"]
+			},
+			{
+				"type": "switch",
+				"key": "showTagsInGenres",
+				"title": "Show Tags in Genre Chips",
+				"default": false,
+				"refreshes": ["content"]
 			}
-		],
-		"footer": "Official chapters (Comix-marked) are preferred, followed by the highest-voted or most recent. Warning: It can be slow on large lists."
+		]
 	},
 	{
 		"type": "group",
+		"title": "Default Filters",
 		"items": [
 			{
 				"type": "page",
-				"key": "contentFilters",
-				"title": "Content Filters",
+				"key": "defaultFiltersPage",
+				"title": "Default Content Filters",
 				"items": [
 					{
 						"type": "group",
 						"items": [
 							{
 								"type": "multi-select",
-								"key": "hiddenTypes",
-								"title": "Hidden Content Types",
-								"titles": [
-									"Manga",
-									"Manhwa",
-									"Manhua",
-									"Other"
-								],
-								"values": [
-									"manga",
-									"manhwa",
-									"manhua",
-									"other"
-								],
+								"key": "defaultTypes",
+								"title": "Default Types",
+								"titles": ["Manga", "Manhwa", "Manhua", "Other"],
+								"values": ["manga", "manhwa", "manhua", "other"],
+								"default": ["manga", "manhwa", "manhua", "other"],
 								"refreshes": ["content"]
 							},
 							{
 								"type": "multi-select",
-								"key": "hiddenGenres",
-								"title": "Hidden Genres",
+								"key": "defaultDemographics",
+								"title": "Default Demographics",
+								"titles": ["Josei", "Seinen", "Shoujo", "Shounen"],
+								"values": ["3", "4", "1", "2"],
+								"default": ["3", "4", "1", "2"],
+								"refreshes": ["content"]
+							},
+							{
+								"type": "multi-select",
+								"key": "blockedGenres",
+								"title": "Blocked Genres",
 								"titles": [
 									"Action",
 									"Adult",
@@ -96,6 +149,7 @@
 									"Ecchi",
 									"Fantasy",
 									"Girls Love",
+									"Harem",
 									"Hentai",
 									"Historical",
 									"Horror",
@@ -128,6 +182,7 @@
 									"87265",
 									"12",
 									"13",
+									"40",
 									"87266",
 									"14",
 									"15",
@@ -149,76 +204,7 @@
 									"29",
 									"30"
 								],
-								"refreshes": ["content"]
-							},
-							{
-								"type": "multi-select",
-								"key": "hiddenThemes",
-								"title": "Hidden Themes",
-								"titles": [
-									"Aliens",
-									"Animals",
-									"Cooking",
-									"Crossdressing",
-									"Delinquents",
-									"Demons",
-									"Genderswap",
-									"Ghosts",
-									"Gyaru",
-									"Harem",
-									"Incest",
-									"Loli",
-									"Mafia",
-									"Magic",
-									"Martial Arts",
-									"Military",
-									"Monster Girls",
-									"Monsters",
-									"Music",
-									"Ninja",
-									"Office Workers",
-									"Police",
-									"Post-Apocalyptic",
-									"Reincarnation",
-									"Reverse Harem",
-									"Samurai",
-									"School Life",
-									"Shota",
-									"Supernatural",
-									"Survival"
-								],
-								"values": [
-									"31",
-									"32",
-									"33",
-									"34",
-									"35",
-									"36",
-									"37",
-									"38",
-									"39",
-									"40",
-									"41",
-									"42",
-									"43",
-									"44",
-									"45",
-									"46",
-									"47",
-									"48",
-									"49",
-									"50",
-									"51",
-									"52",
-									"53",
-									"54",
-									"55",
-									"56",
-									"57",
-									"58",
-									"59",
-									"60"
-								],
+								"default": [],
 								"refreshes": ["content"]
 							}
 						]
@@ -228,49 +214,14 @@
 			{
 				"type": "button",
 				"key": "resetFilters",
-				"title": "Reset Filters",
-				"confirmTitle": "Reset Filters",
-				"confirmText": "Are you sure you want to remove all configured content filters?",
+				"title": "Reset Default Filters",
+				"confirmTitle": "Reset Default Filters",
+				"confirmText": "Reset content rating, default types, demographics, and blocked genres back to defaults?",
 				"destructive": true,
 				"notification": "resetFilters",
 				"refreshes": ["content"]
 			}
 		],
-		"footer": "Content filters are applied globally: to the home page, listings, and search results."
-	},
-	{
-		"type": "group",
-		"title": "Verify Captcha",
-		"items": [
-			{
-				"type": "login",
-				"method": "web",
-				"url": "https://comix.to/@waf/challenge?return=/",
-				"key": "verify",
-				"title": "Verify Comix Captcha",
-				"logoutTitle": "Re-Verify Comix Captcha",
-				"notification": "verify",
-				"refreshes": [
-					"content"
-				]
-			}
-		],
-		"footer": "Open Verify Comix Captcha to solve Comix's challenge. The source automatically persists rotating waf_pass tokens, renews verification in the background when needed, and falls back to WebView transport if native requests are blocked. Not an account login."
-	},
-	{
-		"type": "group",
-		"title": "Connection",
-		"footer": "Automatic prefers Normal HTTP and switches to WebView when Comix or Cloudflare blocks requests.",
-		"items": [
-			{
-				"type": "select",
-				"key": "transportMode",
-				"title": "Requests",
-				"values": ["auto", "webview", "native"],
-				"titles": ["Automatic", "Web View", "Normal"],
-				"default": "auto",
-				"refreshes": ["content", "listings"]
-			}
-		]
+		"footer": "Default filters apply to Home, Listings, and Browse unless overridden in Search Filters."
 	}
 ]

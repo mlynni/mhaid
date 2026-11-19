@@ -2,7 +2,7 @@
 	"info": {
 		"id": "en.comix",
 		"name": "Comix",
-		"version": 30,
+		"version": 31,
 		"url": "https://comix.to",
 		"contentRating": 1,
 		"languages": ["en"],
@@ -10,18 +10,28 @@
 	},
 	"listings": [
 		{
-			"id": "Trending Webtoon"
-		},
-		{
-			"id": "Trending Manga"
-		},
-		{
-			"id": "Most Recent Popular",
+			"id": "Popular",
 			"name": "Popular"
 		},
 		{
-			"id": "Latest Updates (Hot)",
+			"id": "Latest Updates",
 			"name": "Latest Updates"
+		},
+		{
+			"id": "Trending",
+			"name": "Trending"
+		},
+		{
+			"id": "Most Followed",
+			"name": "Most Followed"
+		},
+		{
+			"id": "Recently Added",
+			"name": "Recently Added"
 		}
-	]
+	],
+	"config": {
+		"supportsTagSearch": true,
+		"supportsAuthorSearch": true
+	}
 }

@@ -22,6 +22,16 @@ const LCG_INCREMENT: u32 = 1_013_904_223;
 const FALLBACK_PATHS: &[&str] = &["/hi/", "/fcf/", "/i5/", "/si/", "/i/", "/sii/", "/ii/"];
 const PATH_PREFIXES: &[&str] = &["/i5/", "/sii/", "/si/", "/ii/", "/i/"];
 
+const SCRAMBLE_HEADERS: &[&str] = &[
+	"x-scramble-seed",
+	"x-scramble-grid",
+	"x-scramble-algo",
+	"x-scramble-hash",
+	"x-enc-seed",
+	"x-enc-len",
+	"x-enc-algo",
+];
+
 fn header_or_context<'a>(
 	headers: &'a HashMap<String, String>,
 	context: &'a Option<PageContext>,
@@ -178,6 +188,10 @@ fn descramble_image(image: &ImageRef, seed: u32, algo: Option<&str>) -> ImageRef
 
 pub fn fallback_urls(url: &str) -> Vec<String> {
 	let mut out = Vec::new();
+	let sep = if url.contains('?') { '&' } else { '?' };
+	for retry in 1..=2 {
+		out.push(format!("{url}{sep}r={retry}"));
+	}
 	for prefix in PATH_PREFIXES {
 		if let Some(pos) = url.find(prefix) {
 			for replacement in FALLBACK_PATHS {
@@ -205,10 +219,10 @@ pub fn process_page_image(
 	context: Option<PageContext>,
 ) -> Result<ImageRef> {
 	let mut headers = response.headers;
-	let mut current_image = response.image;
+	let current_image = response.image;
+	let mut raw_bytes: Option<Vec<u8>> = None;
 
-	// Retry fallback CDN paths on HTTP failure, matching Mihon Comix.kt
-	if response.code >= 400
+	if (response.code >= 400 || current_image.width() <= 0.0)
 		&& let Some(orig_url) = response
 			.request
 			.url
@@ -216,26 +230,20 @@ pub fn process_page_image(
 			.or_else(|| context.as_ref().and_then(|c| c.get("url").map(String::as_str)))
 	{
 		for fallback in fallback_urls(orig_url) {
-			if let Ok(resp) = Request::get(&fallback)?.send()
+			if let Ok(req) = Request::get(&fallback)
+				&& let Ok(resp) = req.send()
 				&& resp.status_code() < 400
 				&& let Ok(bytes) = resp.get_data()
+				&& !bytes.is_empty()
 			{
 				let mut recovered_headers = HashMap::new();
-				for h in [
-					"x-scramble-seed",
-					"x-scramble-grid",
-					"x-scramble-algo",
-					"x-scramble-hash",
-					"x-enc-seed",
-					"x-enc-len",
-					"x-enc-algo",
-				] {
+				for h in SCRAMBLE_HEADERS {
 					if let Some(val) = resp.get_header(h) {
-						recovered_headers.insert(String::from(h), val);
+						recovered_headers.insert(String::from(*h), val);
 					}
 				}
 				headers = recovered_headers;
-				current_image = ImageRef::new(&bytes);
+				raw_bytes = Some(bytes);
 				break;
 			}
 		}
@@ -261,17 +269,17 @@ pub fn process_page_image(
 		&& scramble_seed.is_some_and(|s| s != 0);
 
 	if !needs_xor && !should_descramble_grid {
-		return Ok(current_image);
+		return Ok(raw_bytes.map(|b| ImageRef::new(&b)).unwrap_or(current_image));
 	}
 
 	let decoded_image = if let (Some(seed), Some(len)) = (enc_seed, enc_len)
 		&& seed != 0
 	{
-		let raw = current_image.data();
-		let decoded = decode_encoded_bytes(&raw, seed, len, enc_algo);
+		let source = raw_bytes.unwrap_or_else(|| current_image.data());
+		let decoded = decode_encoded_bytes(&source, seed, len, enc_algo);
 		ImageRef::new(&decoded)
 	} else {
-		current_image
+		raw_bytes.map(|b| ImageRef::new(&b)).unwrap_or(current_image)
 	};
 
 	if should_descramble_grid && let Some(seed) = scramble_seed {
