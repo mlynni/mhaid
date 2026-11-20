@@ -8,12 +8,12 @@ mod settings;
 use aidoku::{
 	Chapter, CoverImageProcessor, DeepLinkHandler, DeepLinkResult, FilterValue, ImageRequestProvider,
 	ImageResponse, Listing, ListingProvider, Manga, MangaPageResult, Page, PageContent, PageContext,
-	Result, Source,
+	PageImageProcessor, Result, Source,
 	alloc::{String, Vec, vec},
 	imports::{canvas::ImageRef, net::Request, std::send_partial_result},
 	prelude::*,
 };
-use api::{API_URL, BASE_URL, SORTS, SearchParams, get, parse, site_headers};
+use api::{API_URL, BASE_URL, SORTS, SearchParams, USER_AGENT, get, parse, site_headers};
 use core::cell::RefCell;
 use helpers::{Link, parse_link, site_languages};
 use models::{ApiResponse, ChapterDetail, ChapterItem, Title, chapter_list};
@@ -121,17 +121,35 @@ impl Source for MangaBall {
 
 	fn get_page_list(&self, _manga: Manga, chapter: Chapter) -> Result<Vec<Page>> {
 		let url = format!("{API_URL}/chapter-detail?chapter_id={}", chapter.key);
-		let pages = get::<ApiResponse<ChapterDetail>>(&url)?.data.chapter.pages;
-		if pages.is_empty() || pages.iter().any(|url| url.trim().is_empty()) {
+		let raw_pages = get::<ApiResponse<ChapterDetail>>(&url)?.data.chapter.pages;
+		let pages: Vec<Page> = raw_pages
+			.into_iter()
+			.filter_map(|raw| {
+				let cleaned = raw.trim().replace('\\', "/");
+				if cleaned.is_empty() {
+					return None;
+				}
+				let page_url = if cleaned.starts_with("http://") || cleaned.starts_with("https://") {
+					cleaned
+				} else if cleaned.starts_with("//") {
+					format!("https:{cleaned}")
+				} else if cleaned.starts_with('/') {
+					format!("{BASE_URL}{cleaned}")
+				} else {
+					cleaned
+				};
+				let mut context = PageContext::new();
+				context.insert("url".into(), page_url.clone());
+				Some(Page {
+					content: PageContent::url_context(page_url, context),
+					..Default::default()
+				})
+			})
+			.collect();
+		if pages.is_empty() {
 			bail!("This chapter has missing pages");
 		}
-		Ok(pages
-			.into_iter()
-			.map(|url| Page {
-				content: PageContent::url(url),
-				..Default::default()
-			})
-			.collect())
+		Ok(pages)
 	}
 }
 
@@ -144,24 +162,31 @@ impl ListingProvider for MangaBall {
 	}
 }
 
-fn build_image_request(url: &str, is_page: bool) -> Result<Request> {
+fn build_image_request(url: &str) -> Result<Request> {
 	let req = Request::get(url)?.header(
 		"Accept",
 		"image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8",
 	);
-	if url.contains("mangaball.") || url.contains("poke-black-and-white.net") {
-		Ok(req.header("Referer", &format!("{BASE_URL}/")))
+	if url.contains("mangadex.org") || url.contains("mangadex.network") {
+		Ok(req
+			.header("User-Agent", "Aidoku")
+			.header("Referer", "https://mangadex.org/"))
 	} else if url.contains("comix.to") || url.contains("comix.ws") {
-		Ok(req.header("Referer", "https://comix.to/"))
-	} else if is_page {
-		Ok(req.header("Referer", &format!("{BASE_URL}/")))
+		Ok(req
+			.header("User-Agent", USER_AGENT)
+			.header("Referer", "https://comix.to/"))
+	} else if url.contains("mangaupdates.com") || url.contains("bato.to") || url.contains("mbimg.org") {
+		Ok(req.header("User-Agent", USER_AGENT))
 	} else {
-		Ok(req)
+		// All MangaBall CDNs (bulbasaur.poke-black-and-white.net, chikorita.red-and-blue.net,
+		// mangaball.com, mangaball.net, and any future cover/storage domains) require Referer.
+		Ok(req
+			.header("User-Agent", USER_AGENT)
+			.header("Referer", &format!("{BASE_URL}/")))
 	}
 }
 
 impl ImageRequestProvider for MangaBall {
-	// Avoid sending Referer headers to external cover CDNs (e.g. uploads.mangadex.org) that reject them.
 	fn get_image_request(&self, url: String, context: Option<PageContext>) -> Result<Request> {
 		if context.is_none()
 			&& let Some((primary, fallback)) = url.split_once('#')
@@ -173,9 +198,9 @@ impl ImageRequestProvider for MangaBall {
 				}
 				fallbacks.push((String::from(primary), String::from(fallback)));
 			}
-			return build_image_request(primary, false);
+			return build_image_request(primary);
 		}
-		build_image_request(&url, context.is_some())
+		build_image_request(&url)
 	}
 }
 
@@ -194,7 +219,7 @@ impl CoverImageProcessor for MangaBall {
 					.map(|(_, fb)| fb.clone())
 			});
 			if let Some(fallback_url) = fallback
-				&& let Ok(req) = build_image_request(&fallback_url, false)
+				&& let Ok(req) = build_image_request(&fallback_url)
 				&& let Ok(resp) = req.send()
 				&& resp.status_code() < 400
 				&& let Ok(bytes) = resp.get_data()
@@ -202,15 +227,32 @@ impl CoverImageProcessor for MangaBall {
 			{
 				return Ok(ImageRef::new(&bytes));
 			}
-			if !primary.is_empty()
-				&& let Ok(req) = Request::get(primary)
-				&& let Ok(resp) = req.send()
-				&& resp.status_code() < 400
-				&& let Ok(bytes) = resp.get_data()
-				&& !bytes.is_empty()
-			{
-				return Ok(ImageRef::new(&bytes));
-			}
+		}
+		Ok(response.image)
+	}
+}
+
+impl PageImageProcessor for MangaBall {
+	fn process_page_image(
+		&self,
+		response: ImageResponse,
+		context: Option<PageContext>,
+	) -> Result<ImageRef> {
+		if response.code < 400 && response.image.width() > 0.0 {
+			return Ok(response.image);
+		}
+		if let Some(orig_url) = response
+			.request
+			.url
+			.as_deref()
+			.or_else(|| context.as_ref().and_then(|c| c.get("url").map(String::as_str)))
+			&& let Ok(req) = build_image_request(orig_url)
+			&& let Ok(resp) = req.send()
+			&& resp.status_code() < 400
+			&& let Ok(bytes) = resp.get_data()
+			&& !bytes.is_empty()
+		{
+			return Ok(ImageRef::new(&bytes));
 		}
 		Ok(response.image)
 	}
@@ -239,5 +281,6 @@ register_source!(
 	ListingProvider,
 	ImageRequestProvider,
 	CoverImageProcessor,
+	PageImageProcessor,
 	DeepLinkHandler
 );

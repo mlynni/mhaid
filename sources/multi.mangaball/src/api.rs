@@ -14,6 +14,7 @@ use serde::de::DeserializeOwned;
 
 pub const BASE_URL: &str = "https://mangaball.com";
 pub const API_URL: &str = "https://mangaball.com/api/v1";
+pub const USER_AGENT: &str = "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1";
 
 // Sorts in `filters.json` order.
 pub const SORTS: [&str; 5] = ["lastupdate", "views", "rating", "created_at", "name"];
@@ -57,6 +58,10 @@ impl SearchParams {
 	}
 
 	pub fn url(&self, page: i32) -> String {
+		self.url_with_limit(page, "24")
+	}
+
+	pub fn url_with_limit(&self, page: i32, limit: &str) -> String {
 		let mut query = QueryParameters::new();
 		let mut set = |name: &str, value: &str| {
 			if !value.is_empty() {
@@ -82,7 +87,7 @@ impl SearchParams {
 		set("included_tags", &self.included_tags.join(","));
 		set("excluded_tags", &self.excluded_tags.join(","));
 		set("page", &page.to_string());
-		set("limit", "24");
+		set("limit", limit);
 		format!("{API_URL}/title/search-advanced?{query}")
 	}
 
@@ -126,6 +131,7 @@ impl SearchParams {
 
 pub fn site_headers(request: Request) -> Request {
 	request
+		.header("User-Agent", USER_AGENT)
 		.header("Accept", "application/json")
 		.header("Referer", &format!("{BASE_URL}/"))
 }

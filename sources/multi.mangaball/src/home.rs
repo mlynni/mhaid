@@ -36,7 +36,7 @@ pub fn section_url(id: &'static str, search: &SearchParams) -> String {
 		"top-views" => format!(
 			"{API_URL}/title/top-views?period=week&limit=9&section_key=sidebar_ranking&adult_mode={adult_mode}"
 		),
-		_ => SearchParams::sorted(id).url(1),
+		_ => SearchParams::sorted(id).url_with_limit(1, "12"),
 	}
 }
 

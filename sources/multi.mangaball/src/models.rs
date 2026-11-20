@@ -29,12 +29,13 @@ pub struct Pagination {
 
 #[derive(Deserialize)]
 pub struct Title {
+	#[serde(default, deserialize_with = "null_default")]
 	id: String,
 	name: Option<String>,
 	image: Option<Image>,
 	#[serde(default, deserialize_with = "string_or_vec")]
 	description: Vec<String>,
-	#[serde(default, rename = "originalLanguage")]
+	#[serde(default, rename = "originalLanguage", deserialize_with = "null_default")]
 	pub original_language: String,
 	status: Option<String>,
 	#[serde(
@@ -43,14 +44,22 @@ pub struct Title {
 		deserialize_with = "string_or_vec"
 	)]
 	pub translated_languages: Vec<String>,
-	#[serde(default)]
+	#[serde(default, deserialize_with = "null_default")]
 	pub tags: Vec<Tag>,
-	#[serde(default)]
+	#[serde(default, deserialize_with = "null_default")]
 	author: Vec<Author>,
-	#[serde(default)]
+	#[serde(default, deserialize_with = "null_default")]
 	is18plus: bool,
-	#[serde(default)]
+	#[serde(default, deserialize_with = "null_default")]
 	pub recent_chapters: Vec<ChapterItem>,
+}
+
+fn null_default<'de, D, T>(deserializer: D) -> core::result::Result<T, D::Error>
+where
+	D: Deserializer<'de>,
+	T: Default + Deserialize<'de>,
+{
+	Ok(Option::<T>::deserialize(deserializer)?.unwrap_or_default())
 }
 
 fn string_or_vec<'de, D: Deserializer<'de>>(
@@ -87,22 +96,27 @@ struct Cover {
 
 #[derive(Deserialize)]
 pub struct Tag {
+	#[serde(default, deserialize_with = "null_default")]
 	pub id: String,
+	#[serde(default, deserialize_with = "null_default")]
 	name: String,
 }
 
 #[derive(Deserialize)]
 struct Author {
+	#[serde(default, deserialize_with = "null_default")]
 	name: String,
 }
 
 #[derive(Deserialize)]
 pub struct ChapterItem {
+	#[serde(default, deserialize_with = "null_default")]
 	id: String,
 	name: Option<String>,
 	number: Option<f32>,
-	#[serde(default)]
+	#[serde(default, deserialize_with = "null_default")]
 	volume: f32,
+	#[serde(default, deserialize_with = "null_default")]
 	lang: String,
 	group: Option<Group>,
 	created_at: Option<String>,
@@ -113,6 +127,7 @@ pub struct ChapterItem {
 #[derive(Deserialize)]
 struct Group {
 	id: Option<String>,
+	#[serde(default, deserialize_with = "null_default")]
 	name: String,
 }
 
@@ -124,7 +139,7 @@ pub struct ChapterDetail {
 #[derive(Deserialize)]
 pub struct ChapterPages {
 	pub title_id: Option<String>,
-	#[serde(default)]
+	#[serde(default, deserialize_with = "null_default")]
 	pub pages: Vec<String>,
 }
 
@@ -307,20 +322,53 @@ impl TryFrom<Title> for Manga {
 	}
 }
 
+fn parse_iso_timestamp(raw: &str) -> Option<i64> {
+	let s = raw.get(..19)?;
+	let b = s.as_bytes();
+	if b.get(4) != Some(&b'-')
+		|| b.get(7) != Some(&b'-')
+		|| !matches!(b.get(10), Some(b'T' | b' '))
+		|| b.get(13) != Some(&b':')
+		|| b.get(16) != Some(&b':')
+	{
+		return None;
+	}
+	let year: i64 = s.get(0..4)?.parse().ok()?;
+	let month: i64 = s.get(5..7)?.parse().ok()?;
+	let day: i64 = s.get(8..10)?.parse().ok()?;
+	let hour: i64 = s.get(11..13)?.parse().ok()?;
+	let min: i64 = s.get(14..16)?.parse().ok()?;
+	let sec: i64 = s.get(17..19)?.parse().ok()?;
+	if !(1..=12).contains(&month) || !(1..=31).contains(&day) {
+		return None;
+	}
+	// Howard Hinnant's civil_from_days / days_from_civil algorithm
+	let y = year - i64::from(month <= 2);
+	let era = if y >= 0 { y } else { y - 399 } / 400;
+	let yoe = y - era * 400;
+	let m = month + if month > 2 { -3 } else { 9 };
+	let doy = (153 * m + 2) / 5 + day - 1;
+	let doe = yoe * 365 + yoe / 4 - yoe / 100 + doy;
+	let days = era * 146_097 + doe - 719_468;
+	Some(days * 86_400 + hour * 3_600 + min * 60 + sec)
+}
+
 impl ChapterItem {
 	pub fn into_chapter(
 		self,
 		languages: &[(String, String)],
 		excluded_scanlators: &[String],
 	) -> Option<Chapter> {
-		if self.id.trim().is_empty()
-			|| self.group.as_ref().is_some_and(|group| {
-				excluded_scanlators.contains(&group.name.trim().to_lowercase())
-			}) {
+		if self.id.trim().is_empty() {
 			return None;
 		}
 		let lang = self.lang.to_lowercase();
 		let language = languages.iter().find(|(code, _)| *code == lang)?.1.clone();
+		if self.group.as_ref().is_some_and(|group| {
+			excluded_scanlators.contains(&group.name.trim().to_lowercase())
+		}) {
+			return None;
+		}
 		let title = self.name.filter(|name| {
 			let label = name.trim();
 			let label = label
@@ -336,12 +384,12 @@ impl ChapterItem {
 					.number
 					.is_some_and(|number| label.parse::<f32>() == Ok(number))
 		});
-		// Avoid quoted literals, which the runner does not parse.
-		let date_uploaded = self
-			.created_at
-			.as_deref()
-			.and_then(|date| date.get(..19))
-			.and_then(|date| parse_date(date.replace('T', " "), "yyyy-MM-dd HH:mm:ss"));
+		let date_uploaded = self.created_at.as_deref().and_then(|date| {
+			parse_iso_timestamp(date).or_else(|| {
+				date.get(..19)
+					.and_then(|d| parse_date(d.replace('T', " "), "yyyy-MM-dd HH:mm:ss"))
+			})
+		});
 		Some(Chapter {
 			url: Some(format!("{BASE_URL}/chapter-detail/{}", self.id)),
 			key: self.id,

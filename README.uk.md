@@ -28,7 +28,7 @@ https://raw.githubusercontent.com/mlynni/mlyn-aidoku-sources/gh-pages/index.min.
 | Comix | `en.comix` | `v36` | `en` | `0.8.4` | https://comix.to | Переписано з Mihon v64: WebView SPA-харвестери, вибір дзеркал (`comix.to` / `comix.ws`), дескремблер |
 | Kagane | `multi.kagane` | `v26` | 15 мов | `0.7.1` | https://kagane.moe | Манхва та манґа |
 | MANGA Plus | `multi.mangaplus` | `v6` | 9 мов | `0.7.2` | https://mangaplus.shueisha.co.jp | Офіційні релізи Shueisha |
-| Mangaball | `multi.mangaball` | `v14` | 34 мови (incl. `uk`) | `0.7.1` | https://mangaball.com | Мульти-CDN фолбек постерів і `.512.jpg` |
+| Mangaball | `multi.mangaball` | `v15` | 34 мови (incl. `uk`) | `0.7.1` | https://mangaball.com | Мульти-CDN фолбек постерів і `.512.jpg` |
 | MangaBat | `en.mangabat` | `v9` | `en` | `0.7.1` | https://www.mangabats.com | Шаблон `mangabox` |
 | MangaDex | `multi.mangadex` | `v16` | 54 мови (incl. `uk`, `en`) | `0.7.1` | https://mangadex.org | Публічне API |
 | MangaDotNet | `en.mangadot` | `v20` | 43 мови (incl. `uk`) | `0.8.3` | https://mangadot.net | Групування глав під одну команду |
